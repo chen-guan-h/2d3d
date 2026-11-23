@@ -113,7 +113,7 @@ input[type=range]{width:46%;accent-color:var(--acc)}input[type=checkbox]{width:2
       <div class="opt" id="rowShape" style="display:block;padding:8px 0"><span>造型<small style="display:block;color:var(--mute);font-size:12px;font-weight:400">公仔：四肢、身體各自圓潤（側面、背面較自然）／吊飾：壓克力片般的固定厚度</small></span>
         <div class="seg" role="group" aria-label="造型" id="shpSeg" style="margin-top:6px"><button data-v="fig" aria-pressed="true">立體公仔</button><button data-v="charm" aria-pressed="false">吊飾片</button></div></div>
       <label class="opt" id="rowThk"><span>厚度<small id="vThk">中</small></span><input id="oThk" type="range" min="0" max="100" value="55"></label>
-      <label class="opt" id="rowRnd"><span>邊緣圓角<small id="vRnd">中</small></span><input id="oRnd" type="range" min="0" max="100" value="75"></label>
+      <label class="opt" id="rowRnd"><span>邊緣圓角<small id="vRnd">中</small></span><input id="oRnd" type="range" min="0" max="500" step="5" value="75"></label>
       <div class="opt" id="rowBack" style="display:block;border-top:1px solid var(--line);padding:8px 0">
         <span>背面樣式<small style="display:block;color:var(--mute);font-size:12px;font-weight:400">只影響 360° 模型的背面貼圖</small></span>
         <div class="seg" role="group" aria-label="背面樣式" id="bkSeg" style="margin-top:6px"><button data-b="mirror" aria-pressed="true">鏡像正面</button><button data-b="solid" aria-pressed="false">素色延伸</button><button data-b="photo" aria-pressed="false">背面照</button></div>
@@ -214,6 +214,15 @@ input[type=range]{width:46%;accent-color:var(--acc)}input[type=checkbox]{width:2
       <label class="opt"><span>匯出時包含這個動作</span><input id="twOn" type="checkbox" checked></label>
       <div class="row"><button id="twApply" class="pri">套用並儲存</button></div>
     </div>
+    <div id="rigX" hidden style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px">
+      <div style="font-weight:600">肌肉與體型<small id="bodyInfo" style="display:block;color:var(--mute);font-weight:400;font-size:12px"></small></div>
+      <div id="musBox"></div>
+      <label class="opt"><span>防穿模<small>依各部位肉的粗細，動作時手、腳不穿進身體</small></span><input id="xAnti" type="checkbox" checked></label>
+      <div style="font-weight:600;margin-top:8px">配件（尾巴／翅膀）<small id="accInfo" style="display:block;color:var(--mute);font-weight:400;font-size:12px"></small></div>
+      <label class="opt"><span>配件擺動速度<small id="xAsV">50%</small></span><input id="xAs" type="range" min="10" max="200" step="5" value="50"></label>
+      <label class="opt"><span>配件擺動幅度<small id="xAaV">100%</small></span><input id="xAa" type="range" min="0" max="200" step="5" value="100"></label>
+      <label class="opt" id="xPropRow"><span>手持木棒（劍）<small>掛在右手掛載點 prop_r，可配「抓取」「揮劍」動作</small></span><input id="xProp" type="checkbox"></label>
+    </div>
     <div class="row" style="margin-top:10px"><button id="pConfirm" class="blue">✓ 確認，放入標準庫</button></div>
   </section>
 
@@ -257,7 +266,7 @@ function setMode(m, quiet) { S.mode = m; $('m360').setAttribute('aria-pressed', 
 $('m360').onclick = () => setMode('360'); $('m25').onclick = () => setMode('25');
 $('oRel').oninput = e => { $('vRel').textContent = lvl(+e.target.value); };
 $('oThk').oninput = e => { $('vThk').textContent = lvl(+e.target.value); };
-$('oRnd').oninput = e => { $('vRnd').textContent = lvl(+e.target.value); };
+$('oRnd').oninput = e => { const v = +e.target.value; $('vRnd').textContent = v <= 100 ? lvl(v) : '超強 ×' + (v / 100).toFixed(1); };
 S.shape = 'fig'; const shpUI = () => [...$('shpSeg').children].forEach(b => b.setAttribute('aria-pressed', b.dataset.v === S.shape));
 $('shpSeg').onclick = async e => { const b = e.target.closest('button'); if (!b || b.dataset.v === S.shape) return; S.shape = b.dataset.v; shpUI(); if (S.src && S.mask && S.mesh && !S.busy) { S.busy = true; try { await rebuildAll(); } finally { S.busy = false; } } };
 $('oRes').oninput = e => { $('vRes').textContent = RES_T[+e.target.value]; };
@@ -417,20 +426,24 @@ function buildMesh(cv, mask, depth, o) {
     for (const k of ord) { const i = k % gw, j = (k / gw) | 0; let best = -1, bd = dist[k];
       for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const ii = i + di, jj = j + dj; if ((di || dj) && ii >= 0 && jj >= 0 && ii < gw && jj < gh) { const kk = jj * gw + ii; if (inside[kk] && dist[kk] > bd) { bd = dist[kk]; best = kk; } } }
       Rl[k] = best >= 0 ? Math.max(dist[k], Rl[best]) : dist[k]; }
-    for (let it = 0; it < 4; it++) { const t = Rl.slice(); for (let j = 1; j < gh - 1; j++) for (let i = 1; i < gw - 1; i++) { const k = j * gw + i; if (!inside[k]) continue; let sm = 0, c = 0; for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const kk = k + dj * gw + di; if (inside[kk]) { sm += t[kk]; c++; } } Rl[k] = Math.max(dist[k], sm / c); } }
+    for (let it = 0, itn = 4 + Math.round(Math.max(0, rnd - 1) * 4); it < itn; it++) { const t = Rl.slice(); for (let j = 1; j < gh - 1; j++) for (let i = 1; i < gw - 1; i++) { const k = j * gw + i; if (!inside[k]) continue; let sm = 0, c = 0; for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const kk = k + dj * gw + di; if (inside[kk]) { sm += t[kk]; c++; } } Rl[k] = Math.max(dist[k], sm / c); } }
   }
-  const ts = 0.35 + 0.9 * thk, pw = 2 + (1 - rnd) * 5, Hc = Math.max(gw, gh) * (0.012 + 0.05 * thk);
+  const ts = 0.35 + 0.9 * thk, pw = 2 + (1 - Math.min(1, rnd)) * 5, Hc = Math.max(gw, gh) * (0.012 + 0.05 * thk);
   const half = (k, d) => {   // 半厚度（格數）：公仔＝依部位粗細的圓弧斷面；吊飾＝固定厚度＋圓角邊
-    if (charm) { const r = Math.min(Hc * rnd * 0.95, Rl[k] * 0.9 + 0.5); return d >= r ? Hc : Hc - r + Math.sqrt(Math.max(0, r * r - (r - d) * (r - d))); }
+    if (charm) { const r = Math.min(Hc * Math.min(1, rnd) * 0.95, Rl[k] * 0.9 + 0.5), rh = Math.max(r, Math.min(r * Math.max(1, rnd), Rl[k] * 0.9 + 0.5)); if (d >= rh || rh <= 0) return Hc; const u = 1 - d / rh; return Hc - r + r * Math.sqrt(Math.max(0, 1 - u * u)); }   // 超過 100%：圓角往內延伸成橢圓
     const rl = Math.max(1, Rl[k]), t = Math.min(1, d / rl); return rl * ts * Math.pow(1 - Math.pow(1 - t, pw), 1 / pw);
   };
   // 有側面圖（多視角）：每一列的前後中心與前後最大範圍，讓姿勢（駝背、頭往前）與厚度照側面
   let SP = null, SPI = null;
-  if (two && !charm && o.side) { const pr = sideProfile(o.side.m, o.side.w, o.side.h); let fy0 = -1, fy1 = -1; for (let y = 0; y < H; y++) for (let x = 0; x < W; x += 2) if (mask[y * W + x] > 0.5) { if (fy0 < 0) fy0 = y; fy1 = y; break; }
-    if (pr && fy1 > fy0) { const k = (fy1 - fy0) / Math.max(1, pr.y1 - pr.y0), f = o.side.face || pr.face; let org = 0, no = 0; for (let y = Math.round(pr.y0 + (pr.y1 - pr.y0) * 0.35); y < pr.y0 + (pr.y1 - pr.y0) * 0.6; y++) if (!isNaN(pr.lo[y])) { org += (pr.lo[y] + pr.hi[y]) / 2; no++; } org = no ? org / no : o.side.w / 2; SPI = { pr, fy0, fy1, k, f, org };
+  if (two && !charm && o.side) { const pr = sideProfile(o.side.acc ? o.side.m.map((v, i) => o.side.acc[i] ? 0 : v) : o.side.m, o.side.w, o.side.h); let fy0 = -1, fy1 = -1; for (let y = 0; y < H; y++) for (let x = 0; x < W; x += 2) if (mask[y * W + x] > 0.5) { if (fy0 < 0) fy0 = y; fy1 = y; break; }
+    if (pr && fy1 > fy0) { const k = (fy1 - fy0) / Math.max(1, pr.y1 - pr.y0), f = o.side.face || pr.face;
+      for (let y = pr.y0; y <= pr.y1; y++) { if (isNaN(pr.lo[y])) continue; const fy = Math.round(fy0 + (y - pr.y0) / Math.max(1, pr.y1 - pr.y0) * (fy1 - fy0)); let best = 0, s0 = -1;   // 前後厚度不超過正面同高度最寬那段的 1.3 倍：多出來（貼在腿後的尾巴等）歸給側面配件
+        for (let x = 0; x <= W; x++) { const on = x < W && mask[fy * W + x] > 0.5; if (on && s0 < 0) s0 = x; if (!on && s0 >= 0) { best = Math.max(best, x - s0); s0 = -1; } }
+        const lim = Math.max(2, best * 1.3 / k); if (pr.hi[y] - pr.lo[y] > lim) { if (f > 0) pr.lo[y] = pr.hi[y] - lim; else pr.hi[y] = pr.lo[y] + lim; } } let org = 0, no = 0; for (let y = Math.round(pr.y0 + (pr.y1 - pr.y0) * 0.35); y < pr.y0 + (pr.y1 - pr.y0) * 0.6; y++) if (!isNaN(pr.lo[y])) { org += (pr.lo[y] + pr.hi[y]) / 2; no++; } org = no ? org / no : o.side.w / 2; SPI = { pr, fy0, fy1, k, f, org };
       SP = []; for (let j = 0; j < gh; j++) { const t = (j * sy - fy0) / (fy1 - fy0); let r = null; if (t >= -0.02 && t <= 1.02) { const ys = Math.round(pr.y0 + Math.min(1, Math.max(0, t)) * (pr.y1 - pr.y0)); for (let dd = 0; dd < 6 && !r; dd++) for (const yy of [ys - dd, ys + dd]) if (!r && yy >= 0 && yy < o.side.h && !isNaN(pr.lo[yy])) { const a = (pr.lo[yy] - org) * f * k / sx, b = (pr.hi[yy] - org) * f * k / sx, fr = Math.max(a, b), bk = Math.min(a, b); r = [(fr + bk) / 2, (fr - bk) / 2, (fr - bk) / 2]; } } SP.push(r); }
       { const ws = SP.filter(Boolean).map(r => r[1]).sort((a, b) => a - b), md = ws[ws.length >> 1] || 1, mid = Math.round(gh * 0.45);   // 尾巴等貼在身上的部分會讓那一列變很寬：太寬的列沿用上一列的中心、前後移動也限速
-        for (const [a0, a1, st] of [[mid, gh, 1], [mid - 1, -1, -1]]) { let pv = null; for (let j = a0; j !== a1; j += st) { const r = SP[j]; if (!r) continue; if (pv) { if (r[1] > md * 1.8) { r[0] = pv[0]; r[1] = r[2] = Math.min(r[1], md * 1.3); } r[0] = pv[0] + Math.max(-0.7, Math.min(0.7, r[0] - pv[0])); } pv = r; } } }
+        for (const [a0, a1, st] of [[mid, gh, 1], [mid - 1, -1, -1]]) { let pv = null; for (let j = a0; j !== a1; j += st) { const r = SP[j]; if (!r) continue; if (r[1] > md * 1.25) { const fr = r[0] + r[1], hh = pv ? Math.min(pv[1], md * 1.25) : md; r[0] = fr - hh; r[1] = r[2] = hh; }   // 太寬（尾巴貼著腿）：以前緣為準，往後只取正常厚度
+          if (pv) r[0] = pv[0] + Math.max(-0.5, Math.min(0.5, r[0] - pv[0])); pv = r; } } }
       for (let it = 0; it < 2; it++) { const c = SP.map(r => r && r.slice()); for (let j = 1; j < gh - 1; j++) if (SP[j] && c[j - 1] && c[j + 1]) for (let q = 0; q < 3; q++) SP[j][q] = (c[j - 1][q] + c[j][q] * 2 + c[j + 1][q]) / 4; }
       SP = SP.map(r => r && [r[0] * cell, r[1] * cell * 1.05, r[2] * cell * 1.05]); } }
   // 頂點（正面；360 模式再加背面）
@@ -455,6 +468,9 @@ function buildMesh(cv, mask, depth, o) {
   if (two) {   // 背面：同一輪廓、往後鼓；公仔模式輪廓點與正面重合（封閉），吊飾模式用側牆接起來
     for (let k = 0; k < nf; k++) { P.push(P[k * 3], P[k * 3 + 1], hb[k]); UV.push(UV[k * 2], UV[k * 2 + 1]); }
     for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) { const k = j * gw + i, v = vid[k]; if (v < 0 || edge[k]) continue; const fade = Math.min(1, dist[k] / Math.max(2, dmax * 0.25)); P[(nf + v) * 3 + 2] -= Math.max(0, R * dn[k] * fade) * 0.25; }
+    if (rnd > 1 && !charm) for (let it = 0, itn = Math.round((rnd - 1) * 5); it < itn; it++) for (const off of [0, nf]) {   // 超過 100%：正反面各自再磨圓（輪廓不動）
+      const z0 = new Float32Array(nf); for (let v = 0; v < nf; v++) z0[v] = P[(off + v) * 3 + 2];
+      for (let j = 1; j < gh - 1; j++) for (let i = 1; i < gw - 1; i++) { const k = j * gw + i, v = vid[k]; if (v < 0 || edge[k]) continue; let sm = 0, c = 0; for (const kk of [k - 1, k + 1, k - gw, k + gw]) if (vid[kk] >= 0) { sm += z0[vid[kk]]; c++; } if (c) P[(off + v) * 3 + 2] = z0[v] * 0.4 + sm / c * 0.6; } }
     const nI = I.length; for (let t = 0; t < nI; t += 3) I.push(I[t] + nf, I[t + 2] + nf, I[t + 1] + nf);
     if (charm) {   // 找出正面網格的外框邊，做四圈側牆（正面貼圖兩圈、背面貼圖兩圈，中間接縫在厚度一半處）
       const cntE = new Map(), key = (a, b) => a < b ? a * 1e7 + b : b * 1e7 + a;
@@ -465,7 +481,7 @@ function buildMesh(cv, mask, depth, o) {
         for (let q = 0; q < 3; q += 2) I.push(A[q], A[q + 1], B[q], B[q], A[q + 1], B[q + 1]); }   // 0→1 正面半牆、2→3 背面半牆（朝外）
     }
   }
-  const dupOf = [], SUV = []; let sideStart = -1;
+  const dupOf = [], SUV = []; let sideStart = -1, secA = -1, secB = -1;
   if (SPI && o.side.cv) {   // 有側面圖：① 只在側面看得到、位在身體後方的部分（尾巴、背鰭）沿中線長出來 ② 朝側面的三角形改貼側面圖
     const { pr, fy0, fy1, k, f, org } = SPI, sw = o.side.w, shh = o.side.h; sideStart = 2 * nf;
     const toZ = px => (px - org) * f * k / sx * cell, toPx = z => z / cell * sx / (f * k) + org, rowOfY = Y => pr.y0 + ((((gh - 1) / 2 - Y / cell) * sy - fy0) / (fy1 - fy0)) * (pr.y1 - pr.y0), yOfRow = r => ((gh - 1) / 2 - (fy0 + (r - pr.y0) / (pr.y1 - pr.y0) * (fy1 - fy0)) / sy) * cell;
@@ -473,9 +489,10 @@ function buildMesh(cv, mask, depth, o) {
     for (let j = 0; j < gh; j++) { let a = 0, c = 0; for (let i = 0; i < gw; i++) if (inside[j * gw + i]) { a += i; c++; } midX[j] = c ? a / c : (gw - 1) / 2; let bd = 1e9; for (let i = 0; i < gw; i++) { const v = vid[j * gw + i]; if (v >= 0 && Math.abs(i - midX[j]) < bd) { bd = Math.abs(i - midX[j]); rowV[j] = v; } } }
     for (let j = 1; j < gh; j++) if (rowV[j] < 0) rowV[j] = rowV[j - 1]; for (let j = gh - 2; j >= 0; j--) if (rowV[j] < 0) rowV[j] = rowV[j + 1];
     const sec = new Float32Array(sw * shh); let cnt = 0;
+    if (o.side.acc) for (let i = 0; i < sw * shh; i++) { if (o.side.acc[i] && o.side.m[i] > 0.5) { sec[i] = 1; cnt++; } } else
     for (let y = 0; y < shh; y++) { if (isNaN(pr.lo[y])) continue; const blo = Math.min((pr.lo[y] - org) * f, (pr.hi[y] - org) * f); for (let x = 0; x < sw; x++) if (o.side.m[y * sw + x] > 0.5 && (x - org) * f < blo - 2) { sec[y * sw + x] = 1; cnt++; } }
     const m2 = cnt > 60 ? buildMesh(o.side.cv, sec, null, { mode: '360', res: o.res, rel: 0, thk: o.thk, rnd: o.rnd, shape: 'fig' }) : null;
-    if (m2) { const g2 = m2.g, n2 = m2.pos.length / 3, base = P.length / 3, flip = f > 0;
+    if (m2) { const g2 = m2.g, n2 = m2.pos.length / 3, base = P.length / 3, flip = f > 0; secA = base; secB = base + n2;
       for (let v = 0; v < n2; v++) { const X = m2.pos[v * 3] / g2.s, Yv = m2.pos[v * 3 + 1] / g2.s + g2.y0, Z = m2.pos[v * 3 + 2] / g2.s + g2.zc, px = (X / g2.cell + (g2.gw - 1) / 2) * g2.sx, py = ((g2.gh - 1) / 2 - Yv / g2.cell) * g2.sy;
         const Y = yOfRow(py), j = Math.min(gh - 1, Math.max(0, Math.round((gh - 1) / 2 - Y / cell))), sv = rowV[j];
         P.push((midX[j] - (gw - 1) / 2) * cell + Z / g2.cell * g2.sx * k / sx * cell, Y, toZ(px)); UV.push(UV[sv * 2], UV[sv * 2 + 1]); wsrc.push(sv); dupOf.push(-1); SUV.push(px / sw, py / shh); }
@@ -496,7 +513,7 @@ function buildMesh(cv, mask, depth, o) {
   dupOf.forEach((sv, i) => { if (sv >= 0) for (let c = 0; c < 3; c++) nor[(sideStart + i) * 3 + c] = nor[sv * 3 + c]; });
   for (let k = 0; k < nor.length; k += 3) { const l = Math.hypot(nor[k], nor[k + 1], nor[k + 2]) || 1; nor[k] /= l; nor[k + 1] /= l; nor[k + 2] /= l; }
   if (two) for (let v = 0; v < nf * 2; v++) { const nx = nor[v * 3], ny = nor[v * 3 + 1], st = Math.pow(1 - Math.min(1, Math.abs(nor[v * 3 + 2])), 1.5) * 0.014, l = Math.hypot(nx, ny) || 1; uv[v * 2] = Math.min(1, Math.max(0, uv[v * 2] - nx / l * st)); uv[v * 2 + 1] = Math.min(1, Math.max(0, uv[v * 2 + 1] + ny / l * st)); }   // 側面陡峭處取稍內側的顏色，減少輪廓線被拉長的條紋
-  return { pos, nor, uv, idx, tris: idx.length / 3, two, g: { gw, gh, inside, vid, nf, wsrc: Int32Array.from(wsrc), sideStart, suv: Float32Array.from(SUV), sx, sy, cell, s, y0, zc, W, H } };
+  return { pos, nor, uv, idx, tris: idx.length / 3, two, g: { gw, gh, inside, vid, nf, wsrc: Int32Array.from(wsrc), sideStart, secA, secB, spi: SPI, suv: Float32Array.from(SUV), sx, sy, cell, s, y0, zc, W, H } };
 }
 
 // ---------------- .glb 輸出（glTF 2.0 二進位，貼圖內嵌） ----------------
@@ -514,7 +531,7 @@ function makeGLB(m, imgBytes, mime, rig, ex) {
     attrs.JOINTS_0 = acc.push({ bufferView: add(rig.J, 34962), componentType: 5121, count: nv, type: 'VEC4' }) - 1;
     attrs.WEIGHTS_0 = acc.push({ bufferView: add(rig.Wt, 34962), componentType: 5126, count: nv, type: 'VEC4' }) - 1;
     const base = nodes.length, jn = rig.joints, ibm = new Float32Array(jn.length * 16);
-    jn.forEach((j, k) => { const pp = j.parent >= 0 ? jn[j.parent].pos : [0, 0, 0]; nodes.push({ name: j.name, translation: [j.pos[0] - pp[0], j.pos[1] - pp[1], j.pos[2] - pp[2]] }); ibm.set([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -j.pos[0], -j.pos[1], -j.pos[2], 1], k * 16); });
+    jn.forEach((j, k) => { const pp = j.parent >= 0 ? jn[j.parent].pos : [0, 0, 0]; nodes.push({ name: j.name, translation: [j.pos[0] - pp[0], j.pos[1] - pp[1], j.pos[2] - pp[2]], ...(j.r ? { extras: { radius: +j.r.toFixed(4) } } : {}) }); ibm.set([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -j.pos[0], -j.pos[1], -j.pos[2], 1], k * 16); });
     jn.forEach((j, k) => { if (j.parent >= 0) (nodes[base + j.parent].children = nodes[base + j.parent].children || []).push(base + k); else sceneNodes.push(base + k); });
     nodes[0].skin = 0; extra.skins = [{ joints: jn.map((j, k) => base + k), inverseBindMatrices: acc.push({ bufferView: add(ibm), componentType: 5126, count: jn.length, type: 'MAT4' }) - 1 }];
     extra.animations = rig.clips.map(c => {
@@ -534,8 +551,14 @@ function makeGLB(m, imgBytes, mime, rig, ex) {
       prims.push({ attributes: { ...fa, POSITION: acc.push({ bufferView: add(P, 34962), componentType: 5126, count: nf, type: 'VEC3', min: a, max: b }) - 1 }, indices: ii, material: mats.length });
       mats.push({ name: 'fur' + k, pbrMetallicRoughness: { baseColorTexture: { index: 1 }, baseColorFactor: [F.col[k], F.col[k], F.col[k], 1], metallicFactor: 0, roughnessFactor: 0.9 }, alphaMode: 'MASK', alphaCutoff: F.cut[k], doubleSided: true }); });
   }
-  const js = { asset: { version: '2.0', generator: '圖片轉 3D（手機本地）' }, scene: 0, scenes: [{ nodes: sceneNodes }], nodes, ...extra,
-    meshes: [{ name: 'model', primitives: prims }], materials: mats,
+  const meshes = [{ name: 'model', primitives: prims }];
+  if (ex && ex.prop && rig) {   // 武器（木棒）：獨立節點 Weapon_R，整支綁在右手掛載點 prop_r
+    const W = ex.prop, n = W.pos.length / 3, jj = new Uint8Array(n * 4), ww = new Float32Array(n * 4); for (let i = 0; i < n; i++) { jj[i * 4] = W.joint; ww[i * 4] = 1; }
+    const a = [Infinity, Infinity, Infinity], b = [-Infinity, -Infinity, -Infinity]; for (let i = 0; i < W.pos.length; i += 3) for (let c = 0; c < 3; c++) { a[c] = Math.min(a[c], W.pos[i + c]); b[c] = Math.max(b[c], W.pos[i + c]); }
+    meshes.push({ name: 'weapon_stick', primitives: [{ attributes: { POSITION: acc.push({ bufferView: add(W.pos, 34962), componentType: 5126, count: n, type: 'VEC3', min: a, max: b }) - 1, NORMAL: acc.push({ bufferView: add(W.nor, 34962), componentType: 5126, count: n, type: 'VEC3' }) - 1, JOINTS_0: acc.push({ bufferView: add(jj, 34962), componentType: 5121, count: n, type: 'VEC4' }) - 1, WEIGHTS_0: acc.push({ bufferView: add(ww, 34962), componentType: 5126, count: n, type: 'VEC4' }) - 1 }, indices: acc.push({ bufferView: add(W.idx, 34963), componentType: 5125, count: W.idx.length, type: 'SCALAR' }) - 1, material: mats.length }] });
+    mats.push({ name: 'wood', pbrMetallicRoughness: { baseColorFactor: [0.45, 0.29, 0.15, 1], metallicFactor: 0, roughnessFactor: 0.8 } }); nodes.push({ name: 'Weapon_R', mesh: 1, skin: 0 }); sceneNodes.push(nodes.length - 1); }
+  const js = { asset: { version: '2.0', generator: '圖片轉 3D（手機本地）' }, scene: 0, scenes: [{ nodes: sceneNodes, ...(rig && rig.size ? { extras: { bodySize: rig.size } } : {}) }], nodes, ...extra,
+    meshes, materials: mats,
     textures: texs, samplers: [{ magFilter: 9729, minFilter: 9987, wrapS: 33071, wrapT: 33071 }], images: imgs,
     buffers: [{ byteLength: off }], bufferViews: views, accessors: acc };
   let jb = new TextEncoder().encode(JSON.stringify(js)); const jp = (4 - jb.length % 4) % 4; if (jp) { const t = new Uint8Array(jb.length + jp); t.set(jb); t.fill(32, jb.length); jb = t; }
@@ -586,7 +609,7 @@ $('vTilt').onclick = async e => {   // 傾斜手機 → 模型跟著轉一點（
 //   四足：依側面輪廓找四條腿與頭尾；物體：底到頂一條中軸骨
 //   動作：Mesh2Motion（CC0）人形與狐狸動作庫，依骨頭方向重定向到這個模型；物體用程式產生的搖擺動作
 const MP_BASE = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14', MP_MODEL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task';
-const RIG = { type: 'auto', kind: null, H: null, face: 1, glbURL: null, acts: {}, cur: null };
+const RIG = { type: 'auto', kind: null, H: null, face: 1, glbURL: null, acts: {}, cur: null }, rigX0 = () => ({ mus: {}, anti: true, accS: 0.5, accA: 1, prop: false }); RIG.x = rigX0();
 const LEGS = [['FN', '前腿（近）'], ['FF', '前腿（遠）'], ['BN', '後腿（近）'], ['BF', '後腿（遠）']], LP = [['t', '上'], ['k', '膝'], ['a', '踝'], ['o', '尖']];
 const HDEF = {
   human: [['head', '頭'], ['neck', '脖子'], ['pelvis', '骨盆'], ['shL', '左肩'], ['elL', '左肘'], ['wrL', '左手腕'], ['shR', '右肩'], ['elR', '右肘'], ['wrR', '右手腕'], ['hipL', '左髖'], ['knL', '左膝'], ['anL', '左腳踝'], ['toL', '左腳尖'], ['hipR', '右髖'], ['knR', '右膝'], ['anR', '右腳踝'], ['toR', '右腳尖']],
@@ -601,7 +624,7 @@ const HLINE = {
 const OBJ_CLIPS = [['sway', '搖擺'], ['wiggle', '扭動'], ['bounce', '彈跳'], ['nod', '點頭'], ['dance', '跳舞'], ['spin', '旋轉']];
 function rstat(t) { $('rStat').textContent = t || ''; }
 function rigReset() {
-  if (RIG.glbURL) { URL.revokeObjectURL(RIG.glbURL); RIG.glbURL = null; } RIG.acts = {}; RIG.cur = null; RIG.raw = null; $('clips').innerHTML = ''; $('tweak').hidden = true;
+  $('rigX').hidden = true; if (RIG.glbURL) { URL.revokeObjectURL(RIG.glbURL); RIG.glbURL = null; } RIG.acts = {}; RIG.cur = null; RIG.raw = null; $('clips').innerHTML = ''; $('tweak').hidden = true;
   $('rigCard').hidden = !S.mesh; if (RIG.H) rstat('模型已重新生成，按「套用骨架」重新綁骨'); else rstat('');
 }
 $('rigType').onclick = e => { const b = e.target.closest('button'); if (!b) return; RIG.type = b.dataset.t; [...$('rigType').children].forEach(x => x.setAttribute('aria-pressed', x === b)); };
@@ -760,7 +783,7 @@ function geo(g, seeds) {
 function skinWeights(m, J) {
   const g = m.g, n = g.gw * g.gh, nv = m.pos.length / 3, use = [], dist = [];
   J.forEach((j, k) => {   // 骨段：關節 → 子關節（末端骨往外延伸）；與別的骨段重疊（例如被擋住的遠側腿）就不分配權重
-    const a = [j.img[0] / g.sx, j.img[1] / g.sy], b = [j.end[0] / g.sx, j.end[1] / g.sy], len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (j.acc || j.sock) return; const a = [j.img[0] / g.sx, j.img[1] / g.sy], b = [j.end[0] / g.sx, j.end[1] / g.sy], len = Math.hypot(b[0] - a[0], b[1] - a[1]);
     if (len < 0.5) return; if (use.some(u => Math.hypot(J[u].img[0] - j.img[0], J[u].img[1] - j.img[1]) < 3 && Math.hypot(J[u].end[0] - j.end[0], J[u].end[1] - j.end[1]) < 3)) return;
     const seeds = new Set(), st = Math.ceil(len * 2) + 1; for (let t = 0; t <= st; t++) { const i = Math.round(a[0] + (b[0] - a[0]) * t / st), jj = Math.round(a[1] + (b[1] - a[1]) * t / st); if (i >= 0 && jj >= 0 && i < g.gw && jj < g.gh && g.inside[jj * g.gw + i]) seeds.add(jj * g.gw + i); }
     if (!seeds.size) { const c = nearCell(g, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2); if (c >= 0) seeds.add(c); }
@@ -774,7 +797,7 @@ function skinWeights(m, J) {
   for (let c = 0; c < n; c++) { const v = g.vid[c]; if (v < 0) continue; cellOf[v] = c; if (m.two) cellOf[g.nf + v] = c; }
   g.wsrc.forEach((sv, i) => { cellOf[2 * g.nf + i] = cellOf[sv]; });
   for (let v = 0; v < nv; v++) { const c = cellOf[v]; for (let q = 0; q < 4; q++) { Jv[v * 4 + q] = cw[c * 4 + q]; Wv[v * 4 + q] = ww[c * 4 + q]; } }
-  return { J: Jv, Wt: Wv };
+  return { J: Jv, Wt: Wv, cellOf };
 }
 // ---- 重定向：來源動作 → 這個骨架 ----
 const b64 = s => { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u.buffer; };
@@ -816,6 +839,171 @@ function bakeObj(J, key, label) {
   }
   return { name: label, times, rot, tr };
 }
+// ---- 肌肉群、掛載點、配件（尾巴／翅膀）、抓取動作、體型與防穿模 ----
+const MUS = { human: [['head', '頭頸', /^(head|neck)/], ['torso', '胸腹', /^(pelvis|spine|clavicle)/], ['uarm', '上臂', /^upperarm/], ['farm', '前臂', /^lowerarm/], ['hand', '手', /^hand/], ['thigh', '大腿', /^thigh/], ['calf', '小腿', /^calf/], ['foot', '腳', /^(foot|ball)/], ['tail', '尾巴', /^tail/], ['wing', '翅膀', /^wing/]],
+  quad: [['head', '頭', /^head/], ['torso', '身體', /^(hips|spine)/], ['uleg', '上腿', /(shoulder|pelvis_|upper)/], ['lleg', '下腿', /(lower|ankle|tip_)/], ['tail', '尾巴', /^tail/]],
+  obj: [['body', '整體', /^j\d/], ['tail', '尾巴', /^tail/], ['wing', '翅膀', /^wing/]] };
+const musOf = n => { const g = (MUS[RIG.kind] || []).find(x => x[2].test(n)); return g ? g[0] : null; };
+const V3 = a => new THREE.Vector3(a[0], a[1], a[2]);
+function addSocket(J, m) {   // 右手掛載點 prop_r（武器、道具掛這裡）
+  const h = J.findIndex(j => j.name === 'hand_r'); if (h < 0) return; const img = L2(J[h].img, J[h].end, 0.55), p = toModel(m, img[0], img[1]);
+  J.push({ name: 'prop_r', parent: h, img, mode: 'parent', child: null, end: img, ci: -1, sock: 1, pos: [p[0], p[1], p[2]] });
+}
+function gridDT(ins, gw, gh) { const d = new Float32Array(gw * gh); for (let k = 0; k < d.length; k++) d[k] = ins[k] ? 1e6 : 0; for (let pass = 0; pass < 2; pass++) for (let q = 0; q < gw * gh; q++) { const k = pass ? gw * gh - 1 - q : q, i = k % gw, j = (k / gw) | 0; if (!ins[k]) continue; const s = pass ? 1 : -1; for (const [di, dj, w] of [[s, 0, 1], [0, s, 1], [s, s, 1.414], [-s, s, 1.414]]) { const ii = i + di, jj = j + dj; const v = ii < 0 || jj < 0 || ii >= gw || jj >= gh ? 0 : d[jj * gw + ii]; if (v + w < d[k]) d[k] = v + w; } } return d; }
+function pseg(p, a, e) { const dx = e[0] - a[0], dy = e[1] - a[1], l = dx * dx + dy * dy, t = l ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l)) : 0; return Math.hypot(p[0] - a[0] - dx * t, p[1] - a[1] - dy * t); }
+function accDetect(J, m) {   // 找配件：離所有身體骨頭都太遠（超出該部位肉的粗細）的大塊區域；接在腿／腳＝尾巴，接在肩背＝翅膀
+  const g = m.g, gw = g.gw, gh = g.gh, n = gw * gh, ins = g.inside, dt = gridDT(ins, gw, gh), segs = [];
+  J.forEach((j, k) => { if (j.acc || j.sock) return; const a = [j.img[0] / g.sx, j.img[1] / g.sy], e = [j.end[0] / g.sx, j.end[1] / g.sy], v = [];
+    for (let t = 0; t <= 1.001; t += 0.1) { const i = Math.round(a[0] + (e[0] - a[0]) * t), jj = Math.round(a[1] + (e[1] - a[1]) * t); if (i >= 0 && jj >= 0 && i < gw && jj < gh && ins[jj * gw + i]) v.push(dt[jj * gw + i]); }
+    v.sort((x, y) => x - y); segs.push({ k, a, e, r: v.length ? v[v.length >> 1] : 2, grp: musOf(j.name) }); });
+  const lab = new Int32Array(n).fill(-1), nb = new Int32Array(n).fill(-1); let tot = 0;
+  for (let c = 0; c < n; c++) { if (!ins[c]) continue; tot++; const p = [c % gw, (c / gw) | 0]; let bd = 1e9, bs = null; for (const s of segs) { const d = pseg(p, s.a, s.e) - s.r; if (d < bd) { bd = d; bs = s; } } if (!bs) continue; nb[c] = bs.k; if (bd > Math.max(1.5, bs.r * 0.8) && !/^(hand|farm|head)$/.test(bs.grp)) lab[c] = -2; }
+  const comps = [], q = new Int32Array(n);
+  for (let c0 = 0; c0 < n; c0++) { if (lab[c0] !== -2) continue; const id = comps.length, cells = []; let h = 0, t = 0; q[t++] = c0; lab[c0] = id;
+    while (h < t) { const c = q[h++]; cells.push(c); const i = c % gw; for (const cc of [i > 0 ? c - 1 : -1, i < gw - 1 ? c + 1 : -1, c - gw, c + gw]) if (cc >= 0 && cc < n && lab[cc] === -2) { lab[cc] = id; q[t++] = cc; } }
+    const att = {}; let cx = 0, cy = 0; for (const c of cells) { cx += c % gw; cy += (c / gw) | 0; const i = c % gw; for (const cc of [i > 0 ? c - 1 : -1, i < gw - 1 ? c + 1 : -1, c - gw, c + gw]) if (cc >= 0 && cc < n && ins[cc] && lab[cc] < 0 && nb[cc] >= 0) att[nb[cc]] = (att[nb[cc]] || 0) + 1; }
+    const ab = +Object.keys(att).sort((a, b) => att[b] - att[a])[0]; comps.push({ cells, cx: cx / cells.length, cy: cy / cells.length, att: isNaN(ab) ? -1 : ab }); }
+  const pel = J.findIndex(j => j.name === 'pelvis'), sp3 = J.findIndex(j => j.name === 'spine_03'), root = pel >= 0 ? pel : 0, py = J[root].img[1] / g.sy, midx = J[root].img[0] / g.sx;
+  const big = comps.filter(c => c.cells.length >= Math.max(12, tot * 0.004));
+  big.forEach(c => { const gr = c.att >= 0 ? musOf(J[c.att].name) : null; c.type = c.cy < py && /^(torso|uarm|body)$/.test(gr || '') ? 'wing' : 'tail'; c.glue = c.type === 'tail' && /^(thigh|calf|foot)$/.test(gr || ''); c.side = c.cx > midx ? 1 : -1; });
+  // 黏在腿／腳上的尾巴：切開接觸處的三角形，尾巴才不會被腳拖著走
+  const nv = m.pos.length / 3, vc = new Int32Array(nv).fill(-1); for (let c = 0; c < n; c++) { const v = g.vid[c]; if (v < 0) continue; vc[v] = c; if (m.two) vc[g.nf + v] = c; } g.wsrc.forEach((sv, i) => { vc[2 * g.nf + i] = vc[sv]; });
+  const glued = new Set(g.secA >= 0 ? big.filter(c => c.glue).map(c => comps.indexOf(c)) : []), cl = v => { const c = vc[v]; return c < 0 ? -1 : lab[c]; };
+  if (glued.size) { const I = m.idx, keep = []; for (let t = 0; t < I.length; t += 3) { const a = cl(I[t]), b = cl(I[t + 1]), d = cl(I[t + 2]), gl = [a, b, d].some(x => glued.has(x)), body = [a, b, d].some(x => x < 0 && x !== undefined); if (gl && body && !(I[t] >= (g.secA < 0 ? Infinity : g.secA) && I[t] < g.secB)) continue; keep.push(I[t], I[t + 1], I[t + 2]); } m.idx = Uint32Array.from(keep); }
+  // 建配件骨頭鏈
+  const chains = [], ext = pts => { let L = 0; for (let i = 1; i < pts.length; i++) L += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1], pts[i][2] - pts[i - 1][2]); return L; }, addChain = (type, pts, parent, side) => { if (ext(pts) < 0.08) return -1; const nm = type === 'tail' ? 'tail_' : 'wing_' + (side > 0 ? 'l' : 'r') + '_', ids = [];
+    pts.forEach((p, i) => { const last = i === pts.length - 1; ids.push(J.length); J.push({ name: last ? nm + 'tip' : nm + (i + 1), parent: i ? ids[i - 1] : parent, img: [0, 0], end: [0, 0], mode: 'parent', child: null, ci: -1, acc: { type, i, side }, pos: p }); });
+    for (let i = 0; i < ids.length - 1; i++) J[ids[i]].ci = ids[i + 1]; chains.push({ type, side, ids, label: type === 'tail' ? '尾巴' : (side > 0 ? '左翅' : '右翅') }); return chains.length - 1; };
+  const bins = (pos, dist, nbin) => { let md = 0; dist.forEach(d => { if (d < 1e9) md = Math.max(md, d); }); const s = Array.from({ length: nbin }, () => [0, 0, 0, 0]); dist.forEach((d, i) => { if (d >= 1e9) return; const b = Math.min(nbin - 1, Math.floor(d / (md + 1e-6) * nbin)); for (let c = 0; c < 3; c++) s[b][c] += pos[i][c]; s[b][3]++; }); return s.filter(x => x[3]).map(x => [x[0] / x[3], x[1] / x[3], x[2] / x[3]]); };
+  const comp2chain = new Map(), tails = big.filter(c => c.type === 'tail');
+  if (g.secA >= 0 && g.secB > g.secA) {   // 有側面圖長出的尾巴：用那些頂點沿網格從根部往外分段
+    const S0 = g.secA, S1 = g.secB, rp = J[root].pos, P = m.pos; let r0 = S0, bd = 1e9; for (let v = S0; v < S1; v++) { const d = Math.hypot(P[v * 3] - rp[0], P[v * 3 + 1] - rp[1], P[v * 3 + 2] - rp[2]); if (d < bd) { bd = d; r0 = v; } }
+    const adj = Array.from({ length: S1 - S0 }, () => []); for (let t = 0; t < m.idx.length; t += 3) { const a = m.idx[t], b = m.idx[t + 1], c = m.idx[t + 2]; if (a >= S0 && a < S1 && b >= S0 && b < S1 && c >= S0 && c < S1) for (const [x, y] of [[a, b], [b, c], [c, a]]) { adj[x - S0].push(y - S0); adj[y - S0].push(x - S0); } }
+    const dist = new Float32Array(S1 - S0).fill(1e9), qq = [r0 - S0]; dist[r0 - S0] = 0; for (let h = 0; h < qq.length; h++) { const u = qq[h]; for (const w of adj[u]) if (dist[w] > dist[u] + 1) { dist[w] = dist[u] + 1; qq.push(w); } }
+    const pos = Array.from({ length: S1 - S0 }, (_, i) => [P[(S0 + i) * 3], P[(S0 + i) * 3 + 1], P[(S0 + i) * 3 + 2]]), pts = bins(pos, dist, 5);
+    if (pts.length >= 2) { const ci = addChain('tail', pts, root, 0); if (ci >= 0) { chains[ci].sec = 1; tails.forEach(c => comp2chain.set(comps.indexOf(c), ci)); } } }
+  const fromCells = (c, nbin) => {   // 正面圖上的配件：從接在身體那一頭沿著配件分段
+    const set = new Set(c.cells), d = new Map(), qq = []; for (const x of c.cells) { const i = x % gw; if ([i > 0 ? x - 1 : -1, i < gw - 1 ? x + 1 : -1, x - gw, x + gw].some(cc => cc >= 0 && ins[cc] && !set.has(cc))) { d.set(x, 0); qq.push(x); } }
+    if (!qq.length) { d.set(c.cells[0], 0); qq.push(c.cells[0]); } for (let h = 0; h < qq.length; h++) { const u = qq[h], i = u % gw; for (const w of [i > 0 ? u - 1 : -1, i < gw - 1 ? u + 1 : -1, u - gw, u + gw]) if (set.has(w) && !d.has(w)) { d.set(w, d.get(u) + 1); qq.push(w); } }
+    const pos = c.cells.map(x => { const p = toModel(m, (x % gw) * g.sx, ((x / gw) | 0) * g.sy); return [p[0], p[1], p[2]]; }); return bins(pos, c.cells.map(x => d.has(x) ? d.get(x) : 1e9), nbin);
+  };
+  const hip = tails.filter(c => !c.glue && c.cells.length >= tot * 0.01);   // 只有正面圖時：要接在髖部／軀幹、夠大，才算尾巴（腳邊的鞋子、影子不算）
+  if (!chains.length && hip.length) { const c = hip.sort((a, b) => b.cells.length - a.cells.length)[0], pts = fromCells(c, 5); if (pts.length >= 2) { const ci = addChain('tail', pts, root, 0); if (ci >= 0) hip.forEach(t => comp2chain.set(comps.indexOf(t), ci)); } }
+  big.filter(c => c.type === 'wing' && c.cells.length >= tot * 0.02).forEach(c => { const pts = fromCells(c, 4); if (pts.length >= 2) { const ci = addChain('wing', pts, sp3 >= 0 ? sp3 : root, c.side); if (ci >= 0) comp2chain.set(comps.indexOf(c), ci); } });
+  return { chains, lab, vc, comp2chain };
+}
+function sideAcc(J, m) {   // 側面圖上的配件：把 3D 骨頭投影到側面，離所有身體骨頭太遠的大塊區域（例如貼在腿後的尾巴）
+  const g = m.g, { pr, fy0, fy1, k, f, org } = g.spi, sw = S.side.w, sh = S.side.h, M = S.side.m;
+  const toS = p => { const yp = p[1] / g.s + g.y0, zp = p[2] / g.s + g.zc; return [zp / g.cell * g.sx / (f * k) + org, pr.y0 + ((((g.gh - 1) / 2 - yp / g.cell) * g.sy - fy0) / (fy1 - fy0)) * (pr.y1 - pr.y0)]; };
+  const ins = Uint8Array.from(M, v => v > 0.5 ? 1 : 0), dt = gridDT(ins, sw, sh), segs = [];
+  J.forEach(j => { if (j.acc || j.sock || j.ci < 0 || /^(clavicle|upperarm|lowerarm|hand)/.test(j.name)) return; const a = toS(j.pos), e = toS(J[j.ci].pos), v = []; for (let t = 0; t <= 1.001; t += 0.1) { const x = Math.round(a[0] + (e[0] - a[0]) * t), y = Math.round(a[1] + (e[1] - a[1]) * t); if (x >= 0 && y >= 0 && x < sw && y < sh && ins[y * sw + x]) v.push(dt[y * sw + x]); } v.sort((p, q) => p - q); segs.push({ a, e, r: v.length ? v[v.length >> 1] : 3, n: j.name }); });
+  if (!segs.length) return null; const acc = new Float32Array(sw * sh), lab = new Int32Array(sw * sh).fill(-1); let tot = 0;
+  for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) { const i = y * sw + x; if (!ins[i]) continue; tot++; let bd = 1e9, bs = null; for (const s of segs) { const d = pseg([x, y], s.a, s.e) - s.r; if (d < bd) { bd = d; bs = s; } } if (bd > Math.max(3, bs.r * 0.9) && !/^(head|neck)/.test(bs.n)) acc[i] = 1; }
+  const q = new Int32Array(sw * sh); let id = 0, any = 0;   // 只留大塊的
+  for (let s0 = 0; s0 < sw * sh; s0++) { if (!acc[s0] || lab[s0] >= 0) continue; let h = 0, t = 0; q[t++] = s0; lab[s0] = id; while (h < t) { const i = q[h++], x = i % sw; for (const j of [x > 0 ? i - 1 : -1, x < sw - 1 ? i + 1 : -1, i - sw, i + sw]) if (j >= 0 && j < sw * sh && acc[j] && lab[j] < 0) { lab[j] = id; q[t++] = j; } }
+    if (t < Math.max(60, tot * 0.01)) for (let u = 0; u < t; u++) acc[q[u]] = 0; else any = 1; id++; }
+  return any ? acc : null;
+}
+function cutLimbs(m, J, sw) {   // 手臂貼著身體、兩腿黏在一起的地方，在網格上切開（只留肩膀、髖部的正常連接），動作時才不會拉出一片膜
+  const P = m.pos, nv = P.length / 3, cls = new Int8Array(nv), jt = n => J.find(j => j.name === n), D = (v, j) => Math.hypot(P[v * 3] - j.pos[0], P[v * 3 + 1] - j.pos[1], P[v * 3 + 2] - j.pos[2]);
+  const C = n => /^(upperarm|lowerarm|hand|prop)_l/.test(n) ? 1 : /^(upperarm|lowerarm|hand|prop)_r/.test(n) ? 2 : /^(thigh|calf|foot|ball)_l/.test(n) ? 3 : /^(thigh|calf|foot|ball)_r/.test(n) ? 4 : /^(tail|wing)/.test(n) ? 5 : 0;
+  const zone = {}; for (const s of ['l', 'r']) { const u = jt('upperarm_' + s), l = jt('lowerarm_' + s), t = jt('thigh_' + s), c = jt('calf_' + s); if (u && l) zone['arm' + s] = [u, Math.hypot(...u.pos.map((x, i) => x - l.pos[i])) * 0.45]; if (t && c) zone['leg' + s] = [t, Math.hypot(...t.pos.map((x, i) => x - c.pos[i])) * 0.35]; }
+  for (let v = 0; v < nv; v++) { let bw = 0, bb = 0; for (let q = 0; q < 4; q++) if (sw.Wt[v * 4 + q] > bw) { bw = sw.Wt[v * 4 + q]; bb = sw.J[v * 4 + q]; } cls[v] = C(J[bb].name); }
+  const near = (v, k) => { const z = zone[k]; return z && D(v, z[0]) < z[1]; }, I = m.idx, keep = [];
+  for (let t = 0; t < I.length; t += 3) { const vs = [I[t], I[t + 1], I[t + 2]], cs = new Set(vs.map(v => cls[v])); if (cs.size < 2 || cs.has(5)) { keep.push(...vs); continue; }
+    let ok = true; if (cs.has(1) && cs.has(2) || cs.has(3) && cs.has(4) || (cs.has(1) || cs.has(2)) && (cs.has(3) || cs.has(4))) ok = false;
+    else if (cs.has(0)) { const k = cs.has(1) ? 'arml' : cs.has(2) ? 'armr' : cs.has(3) ? 'legl' : 'legr'; ok = vs.some(v => near(v, k)); }
+    if (ok) keep.push(...vs); }
+  m.idx = Uint32Array.from(keep);
+}
+function accWeights(m, J, sw, acc) {   // 配件上的頂點只跟配件骨頭（依 3D 位置找最近的骨段）
+  const P = m.pos, nv = P.length / 3, g = m.g;
+  for (let v = 0; v < nv; v++) {
+    let ci = -1; const c = acc.vc[v]; if (c >= 0 && acc.lab[c] >= 0 && acc.comp2chain.has(acc.lab[c])) ci = acc.comp2chain.get(acc.lab[c]);
+    if (g.secA >= 0 && v >= g.secA && v < g.secB) { const k = acc.chains.findIndex(x => x.sec); if (k >= 0) ci = k; }
+    if (ci < 0) continue; const ids = acc.chains[ci].ids, p = [P[v * 3], P[v * 3 + 1], P[v * 3 + 2]]; let bd = 1e9, bi = 0, bt = 0;
+    for (let i = 0; i < ids.length - 1; i++) { const a = J[ids[i]].pos, e = J[ids[i + 1]].pos, d = [e[0] - a[0], e[1] - a[1], e[2] - a[2]], l = d[0] ** 2 + d[1] ** 2 + d[2] ** 2, t = l ? Math.max(0, Math.min(1, ((p[0] - a[0]) * d[0] + (p[1] - a[1]) * d[1] + (p[2] - a[2]) * d[2]) / l)) : 0, dd = Math.hypot(p[0] - a[0] - d[0] * t, p[1] - a[1] - d[1] * t, p[2] - a[2] - d[2] * t); if (dd < bd) { bd = dd; bi = i; bt = t; } }
+    sw.J.set([ids[bi], ids[bi + 1], 0, 0], v * 4); sw.Wt.set([1 - bt, bt, 0, 0], v * 4);
+  }
+}
+function armClips(J) {   // 抓取、揮劍（右手）：關鍵姿勢的骨頭方向 → 每格旋轉
+  const id = n => J.findIndex(j => j.name === n), ua = id('upperarm_r'), la = id('lowerarm_r'), hd = id('hand_r'); if (ua < 0 || la < 0 || hd < 0) return [];
+  const o = Math.sign(J[ua].pos[0] - J[0].pos[0]) || -1, V = (x, y, z) => new THREE.Vector3(x * o, y, z).normalize(), d0 = k => V3(J[J[k].ci].pos).sub(V3(J[k].pos)).normalize();
+  const D = [d0(ua), d0(la)], guard = [V(0.35, -0.85, 0.45), V(-0.1, 0.45, 0.9)];
+  const K = { '抓取': [[0, D], [0.7, [V(0.25, -0.35, 1), V(0.1, -0.2, 1)]], [1.0, [V(0.25, -0.4, 1), V(0.1, -0.3, 1)]], [1.5, guard], [2.0, guard], [2.5, D]],
+    '揮劍': [[0, guard], [0.45, [V(0.3, 0.85, -0.2), V(0.1, 0.6, -0.75)]], [0.7, [V(0.15, -0.2, 1), V(0, -0.1, 1)]], [0.95, [V(0.1, -0.75, 0.6), V(-0.2, -0.9, 0.4)]], [1.4, guard]] };
+  return Object.entries(K).map(([name, keys]) => {
+    const Qk = keys.map(([t, d]) => [t, new THREE.Quaternion().setFromUnitVectors(D[0], d[0]), new THREE.Quaternion().setFromUnitVectors(D[1], d[1])]), dur = keys[keys.length - 1][0], nf = Math.round(dur * 30) + 1;
+    const times = new Float32Array(nf), rot = J.map(() => { const r = new Float32Array(nf * 4); for (let f = 0; f < nf; f++) r[f * 4 + 3] = 1; return r; }), tr = new Float32Array(nf * 3), a = new THREE.Quaternion(), b = new THREE.Quaternion(), g = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.35);
+    for (let f = 0; f < nf; f++) { const t = f / 30; times[f] = t; let s = 0; while (s < Qk.length - 2 && t > Qk[s + 1][0]) s++; const u = Math.min(1, (t - Qk[s][0]) / (Qk[s + 1][0] - Qk[s][0])), e = u * u * (3 - 2 * u);
+      a.slerpQuaternions(Qk[s][1], Qk[s + 1][1], e); b.slerpQuaternions(Qk[s][2], Qk[s + 1][2], e); a.toArray(rot[ua], f * 4); a.clone().invert().multiply(b).toArray(rot[la], f * 4);
+      (t > 0.85 && name === '抓取' && t < 2.2 ? g : new THREE.Quaternion()).toArray(rot[hd], f * 4); tr.set(J[0].pos, f * 3); }   // 抓到之後手腕收緊
+    return { name, times, rot, tr };
+  });
+}
+function bodyShape(m, J, sw, mus) {   // 依肌肉群比例把肉往骨頭外推／往內收；同時量出每根骨頭周圍肉的半徑與整體尺寸
+  const P = m.pos, nv = P.length / 3, out = new Float32Array(P.length), sc = J.map(j => { const g = musOf(j.name); return g && mus && mus[g] ? mus[g] : 1; });
+  const seg = J.map(j => { const a = j.pos, e = j.ci >= 0 ? J[j.ci].pos : j.parent >= 0 ? a.map((x, c) => x + (x - J[j.parent].pos[c]) * 0.3) : a; return [a, e]; }), rs = new Float64Array(J.length), rn = new Float64Array(J.length);
+  const cp = (b, x, y, z) => { const [a, e] = seg[b], dx = e[0] - a[0], dy = e[1] - a[1], dz = e[2] - a[2], l = dx * dx + dy * dy + dz * dz, t = l > 1e-12 ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy + (z - a[2]) * dz) / l)) : 0; return [a[0] + dx * t, a[1] + dy * t, a[2] + dz * t]; };
+  let mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];
+  for (let v = 0; v < nv; v++) { const x0 = P[v * 3], y0 = P[v * 3 + 1], z0 = P[v * 3 + 2]; let x = 0, y = 0, z = 0, ws = 0, bw = 0, bb = -1;
+    for (let q = 0; q < 4; q++) { const w = sw.Wt[v * 4 + q]; if (w <= 0) continue; const b = sw.J[v * 4 + q], c = cp(b, x0, y0, z0), s = sc[b]; x += w * (c[0] + (x0 - c[0]) * s); y += w * (c[1] + (y0 - c[1]) * s); z += w * (c[2] + (z0 - c[2]) * s); ws += w; if (w > bw) { bw = w; bb = b; } }
+    if (ws > 0) { x /= ws; y /= ws; z /= ws; } else { x = x0; y = y0; z = z0; } out[v * 3] = x; out[v * 3 + 1] = y; out[v * 3 + 2] = z;
+    if (bb >= 0 && bw > 0.6) { const c = cp(bb, x, y, z); rs[bb] += Math.hypot(x - c[0], y - c[1], z - c[2]); rn[bb]++; }
+    mn = [Math.min(mn[0], x), Math.min(mn[1], y), Math.min(mn[2], z)]; mx = [Math.max(mx[0], x), Math.max(mx[1], y), Math.max(mx[2], z)]; }
+  const R = J.map((j, k) => rn[k] ? rs[k] / rn[k] * 1.2 : 0); J.forEach((j, k) => { if (!R[k] && j.parent >= 0) R[k] = R[j.parent] * 0.8; });
+  return { pos: out, R, size: { h: +(mx[1] - mn[1]).toFixed(4), w: +(mx[0] - mn[0]).toFixed(4), d: +(mx[2] - mn[2]).toFixed(4) } };
+}
+function accMotion(c, J) {   // 配件自己的擺動（疊在每個動作上，可調速度與幅度）
+  const A = J.map((j, k) => j.acc ? k : -1).filter(k => k >= 0); if (!A.length) return c; const X = RIG.x, nf = c.times.length, dur = c.times[nf - 1] || 1, cyc = Math.max(1, Math.round(1.2 * X.accS * dur)), rot = c.rot.slice(), e = new THREE.Euler(), q = new THREE.Quaternion();
+  for (const k of A) { const a = J[k].acc, o = new Float32Array(nf * 4); for (let f = 0; f < nf; f++) { const ph = 2 * Math.PI * cyc * c.times[f] / dur - a.i * 0.7, amp = X.accA;
+      if (a.type === 'tail') e.set(0.05 * amp * Math.sin(2 * ph + 1), 0.16 * amp * Math.sin(ph) * (0.6 + 0.1 * a.i), 0); else e.set(0, 0, a.side * 0.35 * amp * Math.sin(ph) * (a.i ? 0.5 : 1)); q.setFromEuler(e).toArray(o, f * 4); }
+    rot[k] = o; }
+  return { ...c, rot };
+}
+function segSeg(p1, q1, p2, q2) {   // 兩線段最近點
+  const d1 = q1.clone().sub(p1), d2 = q2.clone().sub(p2), r = p1.clone().sub(p2), a = d1.dot(d1), e = d2.dot(d2), f = d2.dot(r); let s, t;
+  if (a < 1e-10 && e < 1e-10) { s = t = 0; } else if (a < 1e-10) { s = 0; t = Math.max(0, Math.min(1, f / e)); } else { const c = d1.dot(r); if (e < 1e-10) { t = 0; s = Math.max(0, Math.min(1, -c / a)); } else { const b = d1.dot(d2), den = a * e - b * b; s = den > 1e-10 ? Math.max(0, Math.min(1, (b * f - c * e) / den)) : 0; t = (b * s + f) / e; if (t < 0) { t = 0; s = Math.max(0, Math.min(1, -c / a)); } else if (t > 1) { t = 1; s = Math.max(0, Math.min(1, (b - c) / a)); } } }
+  const A = p1.clone().addScaledVector(d1, s), B = p2.clone().addScaledVector(d2, t); return [A, B, A.distanceTo(B)];
+}
+function antiClip(c, J, R) {   // 防穿模：每一格算出骨頭位置，手臂碰到軀幹（或兩腿互碰）就把上臂／大腿往外轉開
+  const id = n => J.findIndex(j => j.name === n), pairs = []; if (RIG.kind !== 'human') return c;
+  const tor = [[id('pelvis'), id('spine_02')], [id('spine_02'), id('neck_01')]].filter(s => s[0] >= 0 && s[1] >= 0);
+  for (const s of ['l', 'r']) { const ua = id('upperarm_' + s), la = id('lowerarm_' + s), h = id('hand_' + s); if (ua >= 0 && la >= 0 && h >= 0) pairs.push({ rot: ua, segs: [[la, h], [h, -la - 1]], obs: tor }); }
+  const cl = id('calf_l'), cr = id('calf_r'), fl = id('foot_l'), fr = id('foot_r'); if (cl >= 0 && cr >= 0 && fl >= 0 && fr >= 0) pairs.push({ rot: id('thigh_l'), segs: [[cl, fl]], obs: [[cr, fr]] }, { rot: id('thigh_r'), segs: [[cr, fr]], obs: [[cl, fl]] });
+  if (!pairs.length) return c; const nf = c.times.length, rot = c.rot.map(r => r.slice()), bt = J.map(j => j.parent >= 0 ? V3(j.pos).sub(V3(J[j.parent].pos)) : V3(j.pos));
+  const Qw = J.map(() => new THREE.Quaternion()), Pw = J.map(() => new THREE.Vector3()), ql = new THREE.Quaternion(), rad = k => Math.max(0.015, R[k] || 0);
+  const fk = f => J.forEach((j, k) => { ql.fromArray(rot[k], f * 4); if (j.parent < 0) { Qw[k].copy(ql); Pw[k].set(c.tr[f * 3], c.tr[f * 3 + 1], c.tr[f * 3 + 2]); } else { Qw[k].copy(Qw[j.parent]).multiply(ql); Pw[k].copy(bt[k]).applyQuaternion(Qw[j.parent]).add(Pw[j.parent]); } });
+  const pt = k => k >= 0 ? Pw[k] : Pw[-k - 1].clone().add(Pw[-k - 1].clone().sub(Pw[J[-k - 1].parent]).multiplyScalar(0.45));   // 負號＝手掌末端
+  for (let f = 0; f < nf; f++) for (let it = 0; it < 3; it++) { fk(f); let moved = 0;
+    for (const P of pairs) { let worst = null;
+      for (const [a, b] of P.segs) for (const [oa, ob] of P.obs) { const pa = pt(a), pb = b >= 0 ? Pw[b] : pt(b), [A, B, d] = segSeg(pa, pb, Pw[oa], Pw[ob]), pen = rad(a >= 0 ? a : -a - 1) + rad(oa) - d; if (pen > 0.002 && (!worst || pen > worst[2])) worst = [A, B, pen, d]; }
+      if (!worst) continue; const [A, B, pen, d] = worst, nrm = d > 1e-5 ? A.clone().sub(B).normalize() : new THREE.Vector3(Math.sign(A.x - B.x) || 1, 0, 0), arm = A.clone().sub(Pw[P.rot]), L = arm.length(); if (L < 1e-4) continue;
+      const ax = arm.clone().cross(nrm); if (ax.lengthSq() < 1e-10) continue; const dq = new THREE.Quaternion().setFromAxisAngle(ax.normalize(), Math.min(0.6, pen / L)), W = dq.multiply(Qw[P.rot]), par = J[P.rot].parent;
+      (par >= 0 ? Qw[par].clone().invert().multiply(W) : W).toArray(rot[P.rot], f * 4); moved = 1; }
+    if (!moved) break; }
+  return { ...c, rot };
+}
+function stickMesh(g, joint, H) {   // 木棒：握把在手心，往前上方伸出
+  const L = 0.5 * H, r = 0.011 * H, back = 0.08 * H, d = new THREE.Vector3(0, 0.35, 1).normalize(), u = new THREE.Vector3(1, 0, 0), w = d.clone().cross(u).normalize(), N = 10, pos = [], nor = [], idx = [], c0 = V3(g).addScaledVector(d, -back);
+  for (let e = 0; e < 2; e++) { const c = c0.clone().addScaledVector(d, e * (L + back)); for (let i = 0; i < N; i++) { const a = i / N * 2 * Math.PI, n = u.clone().multiplyScalar(Math.cos(a)).addScaledVector(w, Math.sin(a)), rr = r * (e ? 0.8 : 1); pos.push(c.x + n.x * rr, c.y + n.y * rr, c.z + n.z * rr); nor.push(n.x, n.y, n.z); } }
+  for (let i = 0; i < N; i++) { const j = (i + 1) % N; idx.push(i, j, N + i, j, N + j, N + i); }
+  for (let e = 0; e < 2; e++) { const c = c0.clone().addScaledVector(d, e * (L + back)), b = pos.length / 3, s = e ? 1 : -1; pos.push(c.x, c.y, c.z); nor.push(d.x * s, d.y * s, d.z * s); for (let i = 0; i < N; i++) { pos.push(pos[(e * N + i) * 3], pos[(e * N + i) * 3 + 1], pos[(e * N + i) * 3 + 2]); nor.push(d.x * s, d.y * s, d.z * s); } for (let i = 0; i < N; i++) { const j = (i + 1) % N; e ? idx.push(b, b + 1 + i, b + 1 + j) : idx.push(b, b + 1 + j, b + 1 + i); } }
+  return { pos: new Float32Array(pos), nor: new Float32Array(nor), idx: new Uint32Array(idx), joint };
+}
+function musUI() {
+  const J = RIG.J || [], L = (MUS[RIG.kind] || []).filter(g => J.some(j => g[2].test(j.name))), m = RIG.x.mus, key = L.map(g => g[0]).join();
+  if ($('musBox').dataset.k !== key) { $('musBox').dataset.k = key; $('musBox').innerHTML = L.map(([k, n]) => `<label class="opt"><span>${n}<small id="mu_${k}V">${Math.round((m[k] || 1) * 100)}%</small></span><input data-mu="${k}" type="range" min="50" max="200" step="5" value="${Math.round((m[k] || 1) * 100)}"></label>`).join(''); }
+  $('xPropRow').hidden = RIG.kind !== 'human';
+}
+function xUI() { const X = RIG.x; $('xAnti').checked = X.anti; $('xAs').value = Math.round(X.accS * 100); $('xAsV').textContent = Math.round(X.accS * 100) + '%'; $('xAa').value = Math.round(X.accA * 100); $('xAaV').textContent = Math.round(X.accA * 100) + '%'; $('xProp').checked = X.prop; $('musBox').dataset.k = ''; }
+async function rigXCommit() { if (!RIG.raw) return; if (S.busy) { clearTimeout(rigXCommit.t); rigXCommit.t = setTimeout(rigXCommit, 600); return; } S.busy = true; try { rstat('更新中…'); await buildRigGLB(); await saveProject(); } catch (e) { console.error(e); rstat('更新失敗：' + (e.message || e)); } finally { S.busy = false; } }
+$('musBox').oninput = e => { const k = e.target.dataset.mu; if (k) $('mu_' + k + 'V').textContent = e.target.value + '%'; };
+$('musBox').onchange = e => { const k = e.target.dataset.mu; if (!k) return; RIG.x.mus[k] = +e.target.value / 100; rigXCommit(); };
+$('xAnti').onchange = e => { RIG.x.anti = e.target.checked; rigXCommit(); };
+$('xAs').oninput = e => { $('xAsV').textContent = e.target.value + '%'; }; $('xAs').onchange = e => { RIG.x.accS = +e.target.value / 100; rigXCommit(); };
+$('xAa').oninput = e => { $('xAaV').textContent = e.target.value + '%'; }; $('xAa').onchange = e => { RIG.x.accA = +e.target.value / 100; rigXCommit(); };
+$('xProp').onchange = e => { RIG.x.prop = e.target.checked; rigXCommit(); };
 // ---- 套用骨架：算骨架、權重、原始動作（存起來），再依動作微調輸出 .glb ----
 async function applyRig(save) {
   if (!RIG.H || !S.mesh) return; const b = $('rApply'); b.disabled = true;
@@ -823,10 +1011,12 @@ async function applyRig(save) {
     rstat('計算骨架與權重…'); await tick();
     const m = S.mesh, J = skeleton(RIG.kind, RIG.H, RIG.face);
     J.forEach(j => { const p = toModel(m, j.img[0], j.img[1]); j.pos = [p[0], p[1], p[2] + j.zoff * p[3] * 0.3]; });
-    const sw = skinWeights(m, J); let clips;
+    if (RIG.kind === 'human' && S.side && S.side.cv && !S.side.acc && m.g.spi) { const sa = sideAcc(J, m); S.side.acc = sa || new Float32Array(S.side.w * S.side.h); S.blobs.sideAcc = null; if (sa) { rstat('辨識到側面的尾巴／配件，重建模型…'); await rebuild(); b.disabled = false; return await applyRig(save); } }
+    if (RIG.kind === 'human') addSocket(J, m); const acc = RIG.kind !== 'quad' ? accDetect(J, m) : null;
+    const sw = skinWeights(m, J); if (acc) accWeights(m, J, sw, acc); if (RIG.kind === 'human') cutLimbs(m, J, sw); let clips;
     if (RIG.kind === 'obj') clips = OBJ_CLIPS.map(([k, n]) => bakeObj(J, k, n));
-    else { rstat('載入動作庫…'); const M = await loadMotions(), lib = RIG.kind === 'human' ? M.human : M.quad; rstat('重定向動作中…'); await tick(); clips = lib.clips.map(c => bake(J, lib, c, RIG.kind === 'quad' ? RIG.face : 0)); }
-    RIG.J = J; RIG.sw = sw; RIG.raw = clips;
+    else { rstat('載入動作庫…'); const M = await loadMotions(), lib = RIG.kind === 'human' ? M.human : M.quad; rstat('重定向動作中…'); await tick(); clips = lib.clips.map(c => bake(J, lib, c, RIG.kind === 'quad' ? RIG.face : 0)); if (RIG.kind === 'human') clips.push(...armClips(J)); }
+    RIG.J = J; RIG.sw = sw; RIG.raw = clips; RIG.acc = acc;
     if (!RIG.tw) RIG.tw = await learnedTweaks(RIG.kind);
     await buildRigGLB(); RIG.rigged = true; if (save) await saveProject();
   } catch (e) { console.error(e); rstat('綁骨失敗：' + (e.message || e)); }
@@ -840,13 +1030,18 @@ function tweakClip(c, J) {   // 速度：時間軸縮放；幅度：每格旋轉
 }
 async function buildRigGLB() {
   const m = S.mesh, J = RIG.J, keep = RIG.cur && RIG.cur.getClip().name;
-  const clips = RIG.raw.filter(c => tw(c.name).on).map(c => tweakClip(c, J)); if (!clips.length) clips.push(tweakClip(RIG.raw[0], J));
-  const glb = makeGLB(m, S.jpg, 'image/jpeg', { joints: J.map(j => ({ name: j.name, parent: j.parent, pos: j.pos })), J: RIG.sw.J, Wt: RIG.sw.Wt, clips, root: 0 }, lookEx());
+  const X = RIG.x, B = bodyShape(m, J, RIG.sw, X.mus), mm = { ...m, pos: B.pos }, post = c => { c = accMotion(c, J); return X.anti ? antiClip(c, J, B.R) : c; };
+  const clips = RIG.raw.filter(c => tw(c.name).on).map(c => post(tweakClip(c, J))); if (!clips.length) clips.push(post(tweakClip(RIG.raw[0], J)));
+  const ex = lookEx(); if (ex.fur) ex.fur = { ...ex.fur, pos: ex.fur.pos.map(P => { const o = P.slice(); ex.fur.map.forEach((v, i) => { for (let c = 0; c < 3; c++) o[i * 3 + c] += B.pos[v * 3 + c] - m.pos[v * 3 + c]; }); return o; }) };   // 毛髮跟著肌肉調整
+  const si = J.findIndex(j => j.sock); if (X.prop && si >= 0) ex.prop = stickMesh(J[si].pos, si, B.size.h);
+  const glb = makeGLB(mm, S.jpg, 'image/jpeg', { joints: J.map((j, k) => ({ name: j.name, parent: j.parent, pos: j.pos, r: B.R[k] })), J: RIG.sw.J, Wt: RIG.sw.Wt, clips, root: 0, size: B.size }, ex);
+  $('bodyInfo').textContent = `高 ${B.size.h.toFixed(2)}・寬 ${B.size.w.toFixed(2)}・厚 ${B.size.d.toFixed(2)}（單位同 .glb）`; musUI();
   if (RIG.glbURL) URL.revokeObjectURL(RIG.glbURL); RIG.glbURL = URL.createObjectURL(glb); S.glbBlob = glb; setDl('dGlb', RIG.glbURL, `3d_rig_${stamp()}.glb`);
   const g = await previewGLB(glb);
   mixer = new THREE.AnimationMixer(obj); RIG.acts = {}; RIG.cur = null; g.animations.forEach(a => { RIG.acts[a.name] = mixer.clipAction(a); });
   $('clips').innerHTML = RIG.raw.map(c => `<button data-c="${c.name}" aria-pressed="false"${tw(c.name).on ? '' : ' style="opacity:.45"'}>${c.name}</button>`).join('');
-  const first = keep && RIG.acts[keep] ? keep : g.animations[0] && g.animations[0].name; playClip(first); if (!keep) resetView();
+  const first = keep && RIG.acts[keep] ? keep : g.animations[0] && g.animations[0].name; playClip(first); if (!keep) resetView(); $('rigX').hidden = false;
+  $('accInfo').textContent = RIG.acc && RIG.acc.chains.length ? '偵測到：' + RIG.acc.chains.map(c => c.label).join('、') : '沒偵測到尾巴或翅膀';
   rstat(`已綁骨：${J.length} 根骨頭・${clips.length} 個動作・${(glb.size / 1048576).toFixed(1)} MB（下載的 .glb 含骨架與動作）`);
   window.__rig = { bones: J.length, clips: clips.length, bytes: glb.size, kind: RIG.kind };
 }
@@ -876,7 +1071,7 @@ const dbPut = p => dbDo('readwrite', st => st.put(p)), dbGet = id => dbDo('reado
 function f2png(a, W, H) { const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d'), im = x.createImageData(W, H); for (let i = 0; i < W * H; i++) { const v = Math.round(Math.min(1, Math.max(0, a[i])) * 255); im.data[i * 4] = im.data[i * 4 + 1] = im.data[i * 4 + 2] = v; im.data[i * 4 + 3] = 255; } x.putImageData(im, 0, 0); return new Promise(r => c.toBlob(r, 'image/png')); }
 async function png2f(b, W, H) { const bm = await createImageBitmap(b), c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d'); x.drawImage(bm, 0, 0, W, H); const d = x.getImageData(0, 0, W, H).data, a = new Float32Array(W * H); for (let i = 0; i < W * H; i++) a[i] = d[i * 4] / 255; return a; }
 async function rebuildAll() { await rebuild(); if (RIG.H && RIG.rigged && S.mesh) await applyRig(false); await saveProject(); }   // 改設定後重新生成：已綁骨的會自動重新綁骨、保留動作設定
-function newProject() { RIG.rigged = false; S.bk = null; S.bkStyle = 'mirror'; bkUI(); $('mOpen').disabled = true; $('mWrap').hidden = true; S.pid = null; S.used = null; S.blobs = {}; S.mesh = null; RIG.H = null; RIG.tw = null; RIG.raw = null; RIG.auto = null; $('jWrap').hidden = true; $('tweak').hidden = true; $('rigCard').hidden = true; $('go').textContent = '開始生成'; S.sheet = S.mv = S.side = null; mvUI(); lookClear(); applyLearnedSettings(); libRender(); }
+function newProject() { RIG.rigged = false; RIG.x = rigX0(); xUI(); S.bk = null; S.bkStyle = 'mirror'; bkUI(); $('mOpen').disabled = true; $('mWrap').hidden = true; S.pid = null; S.used = null; S.blobs = {}; S.mesh = null; RIG.H = null; RIG.tw = null; RIG.raw = null; RIG.auto = null; $('jWrap').hidden = true; $('tweak').hidden = true; $('rigCard').hidden = true; $('go').textContent = '開始生成'; S.sheet = S.mv = S.side = null; mvUI(); lookClear(); applyLearnedSettings(); libRender(); }
 function lookClear(p) { LOOK = JSON.parse(JSON.stringify(LOOK0)); if (p && p.look) Object.assign(LOOK, p.look, { fur: Object.assign({}, LOOK0.fur, p.look.fur) }); S.srcData = S.paint = S.pmode = S.paintedCv = S.furMask = S.fur = null; $('lookCard').hidden = true; $('pWrap').hidden = true; PE.kind = null; lookUI(); }
 async function lookLoad(p) {   // 開啟專案：還原外觀設定、上色層、毛髮區域
   lookClear(p); const W = p.W, H = p.H;
@@ -891,6 +1086,7 @@ async function saveProject() {
   if (S.blobs.depth === undefined) S.blobs.depth = S.depth ? await f2png(S.depth, W, H) : null;
   if (S.paint && !S.blobs.paint) { const c = document.createElement('canvas'); c.width = W; c.height = H; c.getContext('2d').putImageData(S.paint, 0, 0); S.blobs.paint = await new Promise(r => c.toBlob(r, 'image/png')); S.blobs.pmode = await f2png(S.pmode, W, H); }
   if (S.furMask && !S.blobs.fur) S.blobs.fur = await f2png(S.furMask, W, H);
+  if (S.side && S.side.acc && !S.blobs.sideAcc) S.blobs.sideAcc = await f2png(S.side.acc, S.side.w, S.side.h);
   if (S.side && !S.blobs.side) { S.blobs.side = await f2png(S.side.m, S.side.w, S.side.h); S.blobs.sideCv = S.side.cv ? await new Promise(r => S.side.cv.toBlob(r, 'image/jpeg', 0.9)) : null; }
   if (S.bk && !S.blobs.bk) { S.blobs.bk = await new Promise(r => S.bk.cv.toBlob(r, 'image/jpeg', 0.9)); S.blobs.bkm = await f2png(S.bk.mask, S.bk.cv.width, S.bk.cv.height); }
   const old = S.pid ? await dbGet(S.pid) : null, d = new Date(now), p2 = n => String(n).padStart(2, '0');
@@ -898,8 +1094,8 @@ async function saveProject() {
     W, H, src: S.blobs.src, mask: S.blobs.mask, depth: S.blobs.depth, used: S.used,
     set: { mode: S.mode, rel: +$('oRel').value, thk: +$('oThk').value, res: +$('oRes').value, back: S.bkStyle, shape: S.shape, rnd: +$('oRnd').value },
     bk: S.blobs.bk || null, bkm: S.blobs.bkm || null, bkW: S.bk ? S.bk.cv.width : 0, bkH: S.bk ? S.bk.cv.height : 0,
-    rig: RIG.H && RIG.raw ? { kind: RIG.kind, H: RIG.H, face: RIG.face, auto: RIG.auto, method: RIG.method, desc: RIG.desc, bb: RIG.bb } : (old && old.rig && RIG.H ? old.rig : null), tw: RIG.tw || null,
-    side: S.side ? { m: S.blobs.side, cv: S.blobs.sideCv || null, w: S.side.w, h: S.side.h, face: S.side.face } : null,
+    rig: RIG.H && RIG.raw ? { kind: RIG.kind, H: RIG.H, face: RIG.face, auto: RIG.auto, method: RIG.method, desc: RIG.desc, bb: RIG.bb } : (old && old.rig && RIG.H ? old.rig : null), tw: RIG.tw || null, rigx: RIG.x,
+    side: S.side ? { m: S.blobs.side, acc: S.side.acc ? S.blobs.sideAcc : null, cv: S.blobs.sideCv || null, w: S.side.w, h: S.side.h, face: S.side.face } : null,
     prompt: $('tP').value, look: LOOK, paint: S.paint ? S.blobs.paint : null, pmode: S.paint ? S.blobs.pmode : null, fur: S.furMask ? S.blobs.fur : null,
     thumb: shot(), glb: S.glbBlob, kind: RIG.raw ? RIG.kind : null };
   await dbPut(p); S.pid = p.id; $('go').textContent = '重新生成'; const dt = $('detail'); if (!/已儲存/.test(dt.textContent)) dt.textContent += (dt.textContent ? '・' : '') + '已儲存到「我的模型」';
@@ -910,7 +1106,7 @@ async function openProject(id) {
   if (S.busy) return; const p = await dbGet(id); if (!p) return; S.busy = true;
   try {
     prog('開啟「' + p.name + '」…', 20, ''); const bm = await createImageBitmap(p.src), cv = document.createElement('canvas'); cv.width = p.W; cv.height = p.H; cv.getContext('2d').drawImage(bm, 0, 0, p.W, p.H);
-    S.src = cv; S.mask = await png2f(p.mask, p.W, p.H); S.depth = p.depth ? await png2f(p.depth, p.W, p.H) : null; S.blobs = { src: p.src, mask: p.mask, depth: p.depth }; S.used = p.used; S.pid = p.id; await lookLoad(p); S.sheet = S.mv = null; S.side = null; if (p.side && p.side.m) { let cv = null; if (p.side.cv) { const bm = await createImageBitmap(p.side.cv); cv = document.createElement('canvas'); cv.width = p.side.w; cv.height = p.side.h; cv.getContext('2d').drawImage(bm, 0, 0, p.side.w, p.side.h); } S.side = { m: await png2f(p.side.m, p.side.w, p.side.h), w: p.side.w, h: p.side.h, face: p.side.face, cv }; S.blobs.side = p.side.m; S.blobs.sideCv = p.side.cv; } mvUI();
+    S.src = cv; S.mask = await png2f(p.mask, p.W, p.H); S.depth = p.depth ? await png2f(p.depth, p.W, p.H) : null; S.blobs = { src: p.src, mask: p.mask, depth: p.depth }; S.used = p.used; S.pid = p.id; await lookLoad(p); S.sheet = S.mv = null; S.side = null; if (p.side && p.side.m) { let cv = null; if (p.side.cv) { const bm = await createImageBitmap(p.side.cv); cv = document.createElement('canvas'); cv.width = p.side.w; cv.height = p.side.h; cv.getContext('2d').drawImage(bm, 0, 0, p.side.w, p.side.h); } S.side = { m: await png2f(p.side.m, p.side.w, p.side.h), w: p.side.w, h: p.side.h, face: p.side.face, cv, acc: p.side.acc ? await png2f(p.side.acc, p.side.w, p.side.h) : null }; S.blobs.side = p.side.m; S.blobs.sideCv = p.side.cv; S.blobs.sideAcc = p.side.acc; } mvUI();
     $('oRel').value = p.set.rel; $('oThk').value = p.set.thk; $('oRes').value = p.set.res; ['oRel', 'oThk', 'oRes'].forEach(k => $(k).dispatchEvent(new Event('input'))); setMode(p.set.mode, true);
     if (p.used) { $('oBg').checked = p.used.bg; $('oDepth').checked = p.used.dep; }
     S.bk = null; if (p.bk && p.bkm) { const bb = await createImageBitmap(p.bk), bc = document.createElement('canvas'); bc.width = p.bkW; bc.height = p.bkH; bc.getContext('2d').drawImage(bb, 0, 0, p.bkW, p.bkH); S.bk = { cv: bc, mask: await png2f(p.bkm, p.bkW, p.bkH) }; S.blobs.bk = p.bk; S.blobs.bkm = p.bkm; }
@@ -919,7 +1115,7 @@ async function openProject(id) {
     if (S.depth) thumb('tDep', depthCanvas(S.src, S.depth, S.mask)); else { const t = $('tDep'); t.width = t.height = 8; }
     $('go').disabled = false; $('go').textContent = '重新生成'; RIG.H = null; RIG.raw = null; RIG.tw = p.tw || null;
     await rebuild();
-    RIG.rigged = !!p.rig; if (p.rig) { Object.assign(RIG, { kind: p.rig.kind, H: p.rig.H, face: p.rig.face, auto: p.rig.auto, method: p.rig.method, desc: p.rig.desc, bb: p.rig.bb }); $('jWrap').hidden = false; $('rFace').hidden = RIG.kind !== 'quad'; edDraw(); await applyRig(false); }
+    RIG.x = Object.assign(rigX0(), p.rigx || {}); xUI(); RIG.rigged = !!p.rig; if (p.rig) { Object.assign(RIG, { kind: p.rig.kind, H: p.rig.H, face: p.rig.face, auto: p.rig.auto, method: p.rig.method, desc: p.rig.desc, bb: p.rig.bb }); $('jWrap').hidden = false; $('rFace').hidden = RIG.kind !== 'quad'; edDraw(); await applyRig(false); }
     else { $('jWrap').hidden = true; $('tweak').hidden = true; }
     prog('已開啟「' + p.name + '」', 100, p.status === 'std' ? '標準庫（已確認）' : '一般庫（未確認）'); libRender();
   } catch (e) { console.error(e); msg('開啟失敗：' + (e.message || e), 'err'); }
@@ -1427,6 +1623,9 @@ function sideProfile(m, w, h) {   // 側面每一列主體（不含尾巴等分�
     for (const q of r) { const sc = prev ? Math.min(q[1], prev[1]) - Math.max(q[0], prev[0]) : q[1] - q[0]; if (sc > bs) { bs = sc; best = q; } } prev = best; lo[y] = best[0]; hi[y] = best[1]; } };
   walk(mid, y0 - 1, -1); walk(mid, y1 + 1, 1);
   let face = 0; { const c = (a, b) => { let s = 0, n = 0; for (let y = Math.round(y0 + (y1 - y0) * a); y < y0 + (y1 - y0) * b; y++) if (!isNaN(lo[y])) { s += (lo[y] + hi[y]) / 2; n++; } return n ? s / n : 0; }; face = c(0, 0.2) - c(0.35, 0.6) >= 0 ? 1 : -1; }   // 頭通常比軀幹往前凸 → 猜面向
+  for (const [a0, a1, st] of [[mid, y1 + 1, 1], [mid - 1, y0 - 1, -1]]) { let pb = null;   // 背側輪廓不准突然往後長：尾巴、翅膀、背鰭等貼在身上的部分留給「側面配件」
+    for (let y = a0; y !== a1; y += st) { if (isNaN(lo[y])) { pb = null; continue; } const lim = Math.max(1.2, (hi[y] - lo[y]) * 0.03);
+      if (pb != null) { if (face > 0 && lo[y] < pb - lim) lo[y] = Math.min(hi[y] - 1, pb - lim); if (face < 0 && hi[y] > pb + lim) hi[y] = Math.max(lo[y] + 1, pb + lim); } pb = face > 0 ? lo[y] : hi[y]; } }
   return { lo, hi, y0, y1, face };
 }
 function mvApply() {   // 依指定的角色把整張圖拆開
