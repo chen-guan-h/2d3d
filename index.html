@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#14161c">
+<title>圖片轉 3D</title>
+<style>
+:root{--bg:#14161c;--card:#1d2029;--line:#2c303c;--ink:#eef0f5;--mute:#9aa1b2;--acc:#ffb347;--acc2:#5cc8ff;--bad:#ff6b6b;--ok:#6bdc8c}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Noto Sans TC","PingFang TC",sans-serif;-webkit-tap-highlight-color:transparent}
+main{max-width:720px;margin:0 auto;padding:12px 16px calc(96px + env(safe-area-inset-bottom))}
+h1{font-size:20px;margin:6px 0 2px}.sub{color:var(--mute);font-size:13px;margin:0 0 12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:12px}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1 1 0;min-width:0}
+button,.btn{appearance:none;border:0;border-radius:12px;padding:13px 10px;font:inherit;font-weight:600;color:var(--ink);background:#2a2f3c;min-height:48px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;text-decoration:none}
+button:disabled,.btn[aria-disabled=true]{opacity:.4;pointer-events:none}
+.pri{background:var(--acc);color:#1a1205}.blue{background:var(--acc2);color:#04131c}
+input[type=file]{display:none}
+.seg{display:flex;background:#2a2f3c;border-radius:12px;padding:3px;gap:3px}.seg button{flex:1;min-height:40px;padding:8px 4px;background:transparent;font-weight:600;font-size:14px}.seg button[aria-pressed=true]{background:var(--acc);color:#1a1205}
+label.opt{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--line)}label.opt:first-of-type{border-top:0}
+label.opt span small{display:block;color:var(--mute);font-size:12px;font-weight:400}
+input[type=range]{width:46%;accent-color:var(--acc)}input[type=checkbox]{width:22px;height:22px;accent-color:var(--acc)}
+#thumbs{display:flex;gap:8px}#thumbs figure{flex:1;margin:0;text-align:center;color:var(--mute);font-size:12px}
+#thumbs canvas,#thumbs img{width:100%;aspect-ratio:1;object-fit:contain;border-radius:10px;background:repeating-conic-gradient(#2a2f3c 0 25%,#232733 0 50%) 0 0/16px 16px;display:block}
+#view{position:relative;height:min(62vh,520px);border-radius:14px;overflow:hidden;background:radial-gradient(circle at 50% 35%,#2b3040,#12141a);touch-action:none}
+#view canvas{display:block;width:100%;height:100%}
+#hint{position:absolute;left:0;right:0;bottom:8px;text-align:center;color:var(--mute);font-size:12px;pointer-events:none}
+#empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--mute);text-align:center;padding:20px}
+.vbar{position:absolute;top:8px;right:8px;display:flex;flex-direction:column;gap:6px}.vbar button{min-height:40px;width:44px;padding:0;background:rgba(20,22,28,.7);font-size:18px}
+.vbar button[aria-pressed=true]{background:var(--acc2);color:#04131c}
+#prog{display:none}#prog.on{display:block}
+.bar{height:10px;background:#2a2f3c;border-radius:6px;overflow:hidden}.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--acc),#ffd27f);transition:width .25s}
+#stage{font-weight:600;margin-bottom:6px;display:flex;justify-content:space-between;gap:8px}#stage b{color:var(--acc)}
+#detail{color:var(--mute);font-size:12px;margin-top:6px;min-height:18px}
+.msg{font-size:13px;overflow-wrap:anywhere;border-radius:10px;padding:8px 10px;margin-top:8px;display:none}.msg.on{display:block}.msg.warn{background:#3a2c14;color:#ffd9a0}.msg.err{background:#3a1818;color:#ffb3b3}
+#dl{position:fixed;left:0;right:0;bottom:0;background:rgba(20,22,28,.96);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom));backdrop-filter:blur(8px)}
+#dl .row{max-width:720px;margin:0 auto}#dl .btn{font-size:14px;min-height:46px}
+.foot{color:var(--mute);font-size:12px}.foot a{color:var(--acc2)}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+</head>
+<body>
+<main>
+  <h1>圖片轉 3D</h1>
+  <p class="sub">全部在這支手機上運算，不經過任何第三方 API。</p>
+
+  <section class="card">
+    <div class="row">
+      <label class="btn pri" for="fCam">📷 拍照</label>
+      <label class="btn" for="fPick">🖼 選取圖片</label>
+    </div>
+    <input id="fCam" type="file" accept="image/*" capture="environment">
+    <input id="fPick" type="file" accept="image/*">
+    <div id="thumbs" style="margin-top:10px">
+      <figure><canvas id="tSrc" width="8" height="8"></canvas>原圖</figure>
+      <figure><canvas id="tCut" width="8" height="8"></canvas>去背</figure>
+      <figure><canvas id="tDep" width="8" height="8"></canvas>深度</figure>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="seg" role="group" aria-label="輸出類型">
+      <button id="m360" aria-pressed="true">360° 立體模型</button>
+      <button id="m25" aria-pressed="false">2.5D 深度浮雕</button>
+    </div>
+    <div style="margin-top:8px">
+      <label class="opt"><span>自動去背<small>把主體從背景切出來</small></span><input id="oBg" type="checkbox" checked></label>
+      <label class="opt"><span>AI 深度<small>用深度模型讀出遠近；關掉則只依輪廓推估形狀</small></span><input id="oDepth" type="checkbox" checked></label>
+      <label class="opt"><span>立體感<small id="vRel">中</small></span><input id="oRel" type="range" min="0" max="100" value="50"></label>
+      <label class="opt" id="rowThk"><span>厚度（推估背面）<small id="vThk">中</small></span><input id="oThk" type="range" min="0" max="100" value="55"></label>
+      <label class="opt"><span>精細度<small id="vRes">中（約 3 萬面）</small></span><input id="oRes" type="range" min="0" max="2" step="1" value="1"></label>
+      <label class="opt"><span>GPU 加速（實驗）<small>手機支援 WebGPU 時較快，但模型下載較大</small></span><input id="oGpu" type="checkbox"></label>
+    </div>
+    <div class="row" style="margin-top:10px"><button id="go" class="pri" disabled>開始生成</button></div>
+    <div id="msg" class="msg"></div>
+  </section>
+
+  <section class="card" id="prog" aria-live="polite">
+    <div id="stage"><span id="stTxt">準備中</span><b id="stPct">0%</b></div>
+    <div class="bar"><i id="stBar"></i></div>
+    <div id="detail"></div>
+  </section>
+
+  <section class="card" style="padding:0">
+    <div id="view">
+      <div id="empty">拍照或選一張圖片，<br>按「開始生成」後在這裡預覽</div>
+      <div class="vbar">
+        <button id="vSpin" aria-pressed="false" title="自動旋轉">⟳</button>
+        <button id="vTilt" aria-pressed="false" title="傾斜手機看視差">📱</button>
+        <button id="vReset" title="重設視角">⌖</button>
+      </div>
+      <div id="hint">單指旋轉・雙指縮放／平移</div>
+    </div>
+  </section>
+
+  <section class="card foot">
+    <div>使用的模型（第一次使用時從 Hugging Face 下載一次，之後存在手機裡、可離線）：</div>
+    <div>・去背：briaai/RMBG-1.4（BRIA 授權，限非商業使用）</div>
+    <div>・深度：Depth Anything V2 Small（Apache-2.0）</div>
+    <div style="margin-top:8px" class="row"><button id="clr">清除已下載的模型</button></div>
+    <div id="cacheInfo" style="margin-top:6px"></div>
+  </section>
+</main>
+
+<nav id="dl">
+  <div class="row">
+    <a class="btn blue" id="dGlb" aria-disabled="true">⬇ .glb</a>
+    <a class="btn" id="dCut" aria-disabled="true">⬇ 去背 PNG</a>
+    <a class="btn" id="dDep" aria-disabled="true">⬇ 深度圖</a>
+  </div>
+</nav>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const TF_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.3.3';
+const $ = id => document.getElementById(id);
+const S = { mode: '360', src: null, mask: null, depth: null, glbURL: null, cutURL: null, depURL: null, busy: false };
+const RES = [128, 192, 272], RES_T = ['低（約 1 萬面）', '中（約 3 萬面）', '高（約 7 萬面）'];
+const lvl = v => v < 25 ? '弱' : v < 45 ? '中弱' : v < 60 ? '中' : v < 80 ? '中強' : '強';
+
+// ---------------- 介面 ----------------
+function setMode(m) { S.mode = m; $('m360').setAttribute('aria-pressed', m === '360'); $('m25').setAttribute('aria-pressed', m === '25'); $('rowThk').style.display = m === '360' ? '' : 'none'; if (S.src && S.mask) rebuild(); }
+$('m360').onclick = () => setMode('360'); $('m25').onclick = () => setMode('25');
+$('oRel').oninput = e => { $('vRel').textContent = lvl(+e.target.value); };
+$('oThk').oninput = e => { $('vThk').textContent = lvl(+e.target.value); };
+$('oRes').oninput = e => { $('vRes').textContent = RES_T[+e.target.value]; };
+['oRel', 'oThk', 'oRes'].forEach(k => $(k).addEventListener('change', () => { if (S.src && S.mask && !S.busy) rebuild(); }));
+function why(e) { const t = String(e && e.message || e); return /dynamically imported module|Failed to fetch|NetworkError|Load failed/i.test(t) ? '連不上網路，模型還沒下載過' : /memory|Memory|OOM|allocate/i.test(t) ? '手機記憶體不足，可把精細度調低或關掉其他 App' : t.slice(0, 80); }
+function msg(t, kind) { const m = $('msg'); m.className = 'msg' + (t ? ' on ' + (kind || 'warn') : ''); m.textContent = t || ''; }
+function prog(txt, pct, det) { $('prog').classList.add('on'); if (txt != null) $('stTxt').textContent = txt; if (pct != null) { $('stPct').textContent = Math.round(pct) + '%'; $('stBar').style.width = pct + '%'; } if (det != null) $('detail').textContent = det; }
+const tick = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
+function setDl(id, url, name) { const a = $(id); if (url) { a.href = url; a.download = name; a.setAttribute('aria-disabled', 'false'); } else { a.removeAttribute('href'); a.setAttribute('aria-disabled', 'true'); } }
+function stamp() { const d = new Date(), p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`; }
+function thumb(id, cv) { const t = $(id), k = 256 / Math.max(cv.width, cv.height); t.width = Math.round(cv.width * k); t.height = Math.round(cv.height * k); t.getContext('2d').drawImage(cv, 0, 0, t.width, t.height); }
+
+// ---------------- 讀圖（依 EXIF 轉正，最長邊 1024） ----------------
+async function loadFile(f) {
+  let bmp;
+  try { bmp = await createImageBitmap(f, { imageOrientation: 'from-image' }); }
+  catch (e) { bmp = await new Promise((ok, no) => { const im = new Image(); im.onload = () => ok(im); im.onerror = no; im.src = URL.createObjectURL(f); }); }
+  const W0 = bmp.width, H0 = bmp.height, k = Math.min(1, 1024 / Math.max(W0, H0)), cv = document.createElement('canvas');
+  cv.width = Math.max(8, Math.round(W0 * k)); cv.height = Math.max(8, Math.round(H0 * k)); cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height);
+  return cv;
+}
+async function onFile(e) {
+  const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
+  try { S.src = await loadFile(f); S.mask = S.depth = null; thumb('tSrc', S.src); ['tCut', 'tDep'].forEach(id => { const t = $(id); t.width = t.height = 8; }); $('go').disabled = false; msg(''); prog('圖片已載入，按「開始生成」', 0, `${S.src.width}×${S.src.height}`); }
+  catch (err) { msg('這張圖片讀不出來，換一張試試（' + err.message + '）', 'err'); }
+}
+$('fCam').onchange = onFile; $('fPick').onchange = onFile;
+
+// ---------------- AI 模型（transformers.js，在手機上跑 ONNX） ----------------
+let TF = null, RMBG = null, DEPTH = null, DEV = null;
+async function tf() { if (!TF) { TF = await import(TF_URL); TF.env.allowLocalModels = false; TF.env.useBrowserCache = true; } return TF; }
+async function device() {
+  if (DEV) return DEV;
+  DEV = { device: 'wasm', dtype: 'q8' };
+  if ($('oGpu').checked && navigator.gpu) { try { const ad = await navigator.gpu.requestAdapter(); if (ad) DEV = { device: 'webgpu', dtype: ad.features.has('shader-f16') ? 'fp16' : 'fp32' }; } catch (e) { } }
+  return DEV;
+}
+$('oGpu').onchange = () => { DEV = null; RMBG = DEPTH = null; };
+function dlTracker(base, span, label) {
+  const files = {};
+  return p => {
+    if (p.status === 'progress' || p.status === 'initiate' || p.status === 'download') { const f = files[p.file] || (files[p.file] = { l: 0, t: 0 }); if (p.loaded != null) f.l = p.loaded; if (p.total) f.t = p.total; }
+    if (p.status === 'done' && files[p.file]) files[p.file].l = files[p.file].t;
+    let l = 0, t = 0; for (const k in files) { l += files[k].l; t += files[k].t; }
+    if (t > 0) prog(label, base + span * Math.min(1, l / t), `${(l / 1048576).toFixed(1)} / ${(t / 1048576).toFixed(1)} MB${l >= t ? '（已在手機裡）' : ''}`);
+  };
+}
+async function cachedCount() { try { if (!('caches' in window)) return 0; const c = await caches.open('transformers-cache'); return (await c.keys()).length; } catch (e) { return 0; } }
+async function aiMask(cv, base, span) {
+  const T = await tf(), D = await device();
+  if (!RMBG) {
+    const cb = dlTracker(base, span * 0.6, '下載去背模型（只需一次）');
+    const model = await T.AutoModel.from_pretrained('briaai/RMBG-1.4', { config: { model_type: 'custom' }, device: D.device, dtype: D.dtype, progress_callback: cb });
+    const proc = await T.AutoProcessor.from_pretrained('briaai/RMBG-1.4', { config: { do_normalize: true, do_pad: false, do_rescale: true, do_resize: true, image_mean: [0.5, 0.5, 0.5], feature_extractor_type: 'ImageFeatureExtractor', image_std: [1, 1, 1], resample: 2, rescale_factor: 0.00392156862745098, size: { width: 1024, height: 1024 } }, progress_callback: cb });
+    RMBG = { model, proc };
+  }
+  prog('去背運算中…', base + span * 0.65, '手機運算約需 10～40 秒'); await tick();
+  const img = await T.RawImage.fromBlob(await new Promise(r => cv.toBlob(r, 'image/png')));
+  const { pixel_values } = await RMBG.proc(img);
+  const { output } = await RMBG.model({ input: pixel_values });
+  const m = await T.RawImage.fromTensor(output[0].mul(255).to('uint8')).resize(cv.width, cv.height);
+  const a = new Float32Array(cv.width * cv.height), ch = m.channels || 1;
+  for (let i = 0; i < a.length; i++) a[i] = m.data[i * ch] / 255;
+  return a;
+}
+async function aiDepth(cv, base, span) {
+  const T = await tf(), D = await device();
+  if (!DEPTH) DEPTH = await T.pipeline('depth-estimation', 'onnx-community/depth-anything-v2-small', { device: D.device, dtype: D.dtype, progress_callback: dlTracker(base, span * 0.6, '下載深度模型（只需一次）') });
+  prog('深度運算中…', base + span * 0.65, '手機運算約需 5～20 秒'); await tick();
+  const img = await T.RawImage.fromBlob(await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.92)));
+  const out = await DEPTH(img);
+  let dimg = out.depth; if (dimg.width !== cv.width || dimg.height !== cv.height) dimg = await dimg.resize(cv.width, cv.height);
+  const a = new Float32Array(cv.width * cv.height), ch = dimg.channels || 1;
+  for (let i = 0; i < a.length; i++) a[i] = dimg.data[i * ch] / 255;   // 越亮越近
+  return a;
+}
+
+// ---------------- 備用（AI 不能用時）：以邊框顏色判斷背景 ----------------
+function keyMask(cv) {
+  const W = cv.width, H = cv.height, d = cv.getContext('2d').getImageData(0, 0, W, H).data, n = W * H, bg = [];
+  for (let x = 0; x < W; x += 4) bg.push(x, (H - 1) * W + x); for (let y = 0; y < H; y += 4) bg.push(y * W, y * W + W - 1);
+  const med = c => { const v = bg.map(i => d[i * 4 + c]).sort((a, b) => a - b); return v[v.length >> 1]; }, br = med(0), bgc = med(1), bb = med(2);
+  const dist = i => Math.hypot(d[i * 4] - br, d[i * 4 + 1] - bgc, d[i * 4 + 2] - bb), thr = 38, seen = new Uint8Array(n), q = new Int32Array(n); let h = 0, t = 0;
+  const push = i => { if (!seen[i] && dist(i) < thr) { seen[i] = 1; q[t++] = i; } };
+  for (let x = 0; x < W; x++) { push(x); push((H - 1) * W + x); } for (let y = 0; y < H; y++) { push(y * W); push(y * W + W - 1); }
+  while (h < t) { const i = q[h++], x = i % W, y = (i / W) | 0; if (x > 0) push(i - 1); if (x < W - 1) push(i + 1); if (y > 0) push(i - W); if (y < H - 1) push(i + W); }
+  const a = new Float32Array(n); for (let i = 0; i < n; i++) a[i] = seen[i] ? 0 : 1;
+  return blurMask(a, W, H, 2);
+}
+function blurMask(a, W, H, r) {
+  const o = new Float32Array(a.length), t = new Float32Array(a.length);
+  for (let y = 0; y < H; y++) { let s = 0; for (let x = -r; x <= r; x++) s += a[y * W + Math.min(W - 1, Math.max(0, x))]; for (let x = 0; x < W; x++) { t[y * W + x] = s / (2 * r + 1); s += a[y * W + Math.min(W - 1, x + r + 1)] - a[y * W + Math.max(0, x - r)]; } }
+  for (let x = 0; x < W; x++) { let s = 0; for (let y = -r; y <= r; y++) s += t[Math.min(H - 1, Math.max(0, y)) * W + x]; for (let y = 0; y < H; y++) { o[y * W + x] = s / (2 * r + 1); s += t[Math.min(H - 1, y + r + 1) * W + x] - t[Math.max(0, y - r) * W + x]; } }
+  return o;
+}
+
+// ---------------- 輸出圖：去背 PNG、深度圖、模型貼圖（背景補色，邊緣不會有白邊） ----------------
+function cutCanvas(cv, mask) {
+  const W = cv.width, H = cv.height, o = document.createElement('canvas'); o.width = W; o.height = H; const c = o.getContext('2d'); c.drawImage(cv, 0, 0);
+  const im = c.getImageData(0, 0, W, H); for (let i = 0; i < W * H; i++) im.data[i * 4 + 3] = Math.round(Math.min(1, Math.max(0, (mask[i] - 0.15) / 0.7)) * 255); c.putImageData(im, 0, 0); return o;
+}
+function depthCanvas(cv, depth, mask) {
+  const W = cv.width, H = cv.height, o = document.createElement('canvas'); o.width = W; o.height = H; const c = o.getContext('2d'), im = c.createImageData(W, H);
+  for (let i = 0; i < W * H; i++) { const v = Math.round(depth[i] * 255); im.data[i * 4] = im.data[i * 4 + 1] = im.data[i * 4 + 2] = v; im.data[i * 4 + 3] = mask ? Math.round(Math.max(0.25, mask[i]) * 255) : 255; }
+  c.putImageData(im, 0, 0); return o;
+}
+function bleedTex(cv, mask) {
+  const k = Math.min(1, 1024 / Math.max(cv.width, cv.height)), W = Math.round(cv.width * k), H = Math.round(cv.height * k), o = document.createElement('canvas'); o.width = W; o.height = H;
+  const c = o.getContext('2d'); c.drawImage(cv, 0, 0, W, H); const im = c.getImageData(0, 0, W, H), d = im.data, ok = new Uint8Array(W * H);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) ok[y * W + x] = mask[Math.min(cv.height - 1, Math.round(y / k)) * cv.width + Math.min(cv.width - 1, Math.round(x / k))] > 0.55 ? 1 : 0;
+  for (let it = 0; it < 24; it++) {   // 主體外的像素逐圈補上鄰近主體的顏色
+    const nx = ok.slice(); let any = 0;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const i = y * W + x; if (ok[i]) continue; let r = 0, g = 0, b = 0, n = 0;
+      for (const j of [x > 0 ? i - 1 : -1, x < W - 1 ? i + 1 : -1, y > 0 ? i - W : -1, y < H - 1 ? i + W : -1]) if (j >= 0 && ok[j]) { r += d[j * 4]; g += d[j * 4 + 1]; b += d[j * 4 + 2]; n++; }
+      if (n) { d[i * 4] = r / n; d[i * 4 + 1] = g / n; d[i * 4 + 2] = b / n; nx[i] = 1; any = 1; }
+    }
+    ok.set(nx); if (!any) break;
+  }
+  c.putImageData(im, 0, 0); return o;
+}
+
+// ---------------- 建網格 ----------------
+function sample(a, W, H, x, y) {   // 雙線性取樣（x,y 為像素座標）
+  x = Math.min(W - 1, Math.max(0, x)); y = Math.min(H - 1, Math.max(0, y)); const x0 = Math.floor(x), y0 = Math.floor(y), x1 = Math.min(W - 1, x0 + 1), y1 = Math.min(H - 1, y0 + 1), fx = x - x0, fy = y - y0;
+  return (a[y0 * W + x0] * (1 - fx) + a[y0 * W + x1] * fx) * (1 - fy) + (a[y1 * W + x0] * (1 - fx) + a[y1 * W + x1] * fx) * fy;
+}
+function buildMesh(cv, mask, depth, o) {
+  const W = cv.width, H = cv.height, L = RES[o.res], gw = W >= H ? L : Math.max(8, Math.round(L * W / H)), gh = H >= W ? L : Math.max(8, Math.round(L * H / W)), n = gw * gh;
+  const sx = (W - 1) / (gw - 1), sy = (H - 1) / (gh - 1), M = new Float32Array(n), Dp = new Float32Array(n), inside = new Uint8Array(n);
+  for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) { const k = j * gw + i; M[k] = sample(mask, W, H, i * sx, j * sy); Dp[k] = depth ? sample(depth, W, H, i * sx, j * sy) : 0; inside[k] = M[k] >= 0.5 ? 1 : 0; }
+  // 去掉零碎小塊（保留不小於最大塊 5% 的區塊）
+  const lab = new Int32Array(n).fill(-1), sizes = [], q = new Int32Array(n);
+  for (let s = 0; s < n; s++) { if (!inside[s] || lab[s] >= 0) continue; let h = 0, t = 0; q[t++] = s; lab[s] = sizes.length; while (h < t) { const k = q[h++], x = k % gw, y = (k / gw) | 0; for (const j of [x > 0 ? k - 1 : -1, x < gw - 1 ? k + 1 : -1, y > 0 ? k - gw : -1, y < gh - 1 ? k + gw : -1]) if (j >= 0 && inside[j] && lab[j] < 0) { lab[j] = sizes.length; q[t++] = j; } } sizes.push(t); }
+  if (!sizes.length) return null;
+  const big = Math.max(...sizes); for (let k = 0; k < n; k++) if (inside[k] && sizes[lab[k]] < big * 0.05) inside[k] = 0;
+  // 到輪廓的距離（倒角距離轉換）→ 圓弧鼓起
+  const INF = 1e9, dist = new Float32Array(n); for (let k = 0; k < n; k++) dist[k] = inside[k] ? INF : 0;
+  for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) { const k = j * gw + i; if (!dist[k]) continue; let v = dist[k]; if (i > 0) v = Math.min(v, dist[k - 1] + 1); if (j > 0) { v = Math.min(v, dist[k - gw] + 1); if (i > 0) v = Math.min(v, dist[k - gw - 1] + 1.414); if (i < gw - 1) v = Math.min(v, dist[k - gw + 1] + 1.414); } if (i === 0 || j === 0 || i === gw - 1 || j === gh - 1) v = Math.min(v, 1); dist[k] = v; }
+  for (let j = gh - 1; j >= 0; j--) for (let i = gw - 1; i >= 0; i--) { const k = j * gw + i; if (!dist[k]) continue; let v = dist[k]; if (i < gw - 1) v = Math.min(v, dist[k + 1] + 1); if (j < gh - 1) { v = Math.min(v, dist[k + gw] + 1); if (i < gw - 1) v = Math.min(v, dist[k + gw + 1] + 1.414); if (i > 0) v = Math.min(v, dist[k + gw - 1] + 1.414); } dist[k] = v; }
+  let dmax = 1; for (let k = 0; k < n; k++) if (inside[k]) dmax = Math.max(dmax, dist[k]);
+  // 深度：主體內取 2%～98% 百分位正規化，再做幾次只在主體內的平滑
+  let dn = new Float32Array(n);
+  if (depth) {
+    const v = []; for (let k = 0; k < n; k++) if (inside[k]) v.push(Dp[k]); v.sort((a, b) => a - b);
+    const lo = v[Math.floor(v.length * 0.02)], hi = v[Math.floor(v.length * 0.98)], md = v[v.length >> 1], sp = Math.max(1e-3, hi - lo);
+    for (let k = 0; k < n; k++) dn[k] = inside[k] ? Math.min(1, Math.max(0, (Dp[k] - lo) / sp)) - (md - lo) / sp : 0;
+    for (let it = 0; it < 2; it++) { const t = dn.slice(); for (let j = 1; j < gh - 1; j++) for (let i = 1; i < gw - 1; i++) { const k = j * gw + i; if (!inside[k]) continue; let s = 0, c = 0; for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const kk = k + dj * gw + di; if (inside[kk]) { s += t[kk]; c++; } } dn[k] = s / c; } }
+  }
+  const cell = 1 / (Math.max(gw, gh) - 1), rel = o.rel, thk = o.thk, two = o.mode === '360';
+  const R = (two ? 0.22 : 0.32) * rel * rel * 1.6, T = dmax * cell * (0.15 + 1.25 * thk);
+  // 頂點（正面；360 模式再加背面）
+  const vid = new Int32Array(n).fill(-1), P = [], UV = [], edge = new Uint8Array(n); let nv = 0;
+  for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
+    const k = j * gw + i; if (!inside[k]) continue;
+    let ex = 0, ey = 0, mo = 0, cnt = 0;
+    for (const [di, dj] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) { const ii = i + di, jj = j + dj, out = ii < 0 || jj < 0 || ii >= gw || jj >= gh || !inside[jj * gw + ii]; if (out) { ex += di; ey += dj; mo += (ii < 0 || jj < 0 || ii >= gw || jj >= gh) ? 0 : M[jj * gw + ii]; cnt++; } }
+    let x = i, y = j;
+    if (cnt) { edge[k] = 1; const m = M[k], m2 = mo / cnt, f = m > m2 + 1e-3 ? Math.min(0.9, Math.max(0, (m - 0.5) / (m - m2))) : 0, l = Math.hypot(ex, ey) || 1; x += ex / l * f; y += ey / l * f; }   // 邊緣頂點推到半透明 0.5 的位置，輪廓才平順
+    const b = edge[k] ? 0 : Math.sqrt(Math.max(0, 1 - (1 - Math.min(1, dist[k] / dmax)) ** 2)), fade = edge[k] ? 0 : Math.min(1, dist[k] / Math.max(2, dmax * 0.25));
+    const z = two ? Math.max(T * b * 0.2, T * b + R * dn[k] * fade) : R * dn[k] * fade;   // 正面不會凹到背面後面
+    P.push((x - (gw - 1) / 2) * cell, ((gh - 1) / 2 - y) * cell, z); UV.push(x / (gw - 1), y / (gh - 1)); vid[k] = nv++;
+  }
+  const I = [];
+  for (let j = 0; j < gh - 1; j++) for (let i = 0; i < gw - 1; i++) {
+    const a = vid[j * gw + i], b = vid[j * gw + i + 1], c = vid[(j + 1) * gw + i], d = vid[(j + 1) * gw + i + 1], m = (a >= 0) + (b >= 0) + (c >= 0) + (d >= 0);
+    if (m === 4) { I.push(a, c, b, b, c, d); } else if (m === 3) { if (a < 0) I.push(b, c, d); else if (b < 0) I.push(a, c, d); else if (c < 0) I.push(a, d, b); else I.push(a, c, b); }
+  }
+  const nf = nv;
+  if (two) {   // 背面：同一輪廓、往後鼓（較平），貼圖用正面左右相反的樣子；輪廓上的點與正面重合，模型是封閉的
+    for (let k = 0; k < nf; k++) { P.push(P[k * 3], P[k * 3 + 1], 0); UV.push(UV[k * 2], UV[k * 2 + 1]); }
+    let w = 0; for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) { const k = j * gw + i; if (vid[k] < 0) continue; const b = edge[k] ? 0 : Math.sqrt(Math.max(0, 1 - (1 - Math.min(1, dist[k] / dmax)) ** 2)), fade = edge[k] ? 0 : Math.min(1, dist[k] / Math.max(2, dmax * 0.25)); P[(nf + vid[k]) * 3 + 2] = -(T * b * 0.85 + Math.max(0, R * dn[k] * fade) * 0.3); w++; }
+    const nI = I.length; for (let t = 0; t < nI; t += 3) I.push(I[t] + nf, I[t + 2] + nf, I[t + 1] + nf);
+  }
+  // 置中（底部對齊 y=0，前後置中），高度固定 1
+  let y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity; for (let k = 0; k < P.length; k += 3) { y0 = Math.min(y0, P[k + 1]); y1 = Math.max(y1, P[k + 1]); z0 = Math.min(z0, P[k + 2]); z1 = Math.max(z1, P[k + 2]); }
+  const s = 1 / Math.max(1e-6, y1 - y0), zc = two ? (z0 + z1) / 2 : 0; for (let k = 0; k < P.length; k += 3) { P[k] *= s; P[k + 1] = (P[k + 1] - y0) * s; P[k + 2] = (P[k + 2] - zc) * s; }
+  const pos = new Float32Array(P), uv = new Float32Array(UV), idx = new Uint32Array(I), nor = new Float32Array(pos.length);
+  for (let t = 0; t < idx.length; t += 3) { const a = idx[t] * 3, b = idx[t + 1] * 3, c = idx[t + 2] * 3, ux = pos[b] - pos[a], uy = pos[b + 1] - pos[a + 1], uz = pos[b + 2] - pos[a + 2], vx = pos[c] - pos[a], vy = pos[c + 1] - pos[a + 1], vz = pos[c + 2] - pos[a + 2], nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx; for (const q of [a, b, c]) { nor[q] += nx; nor[q + 1] += ny; nor[q + 2] += nz; } }
+  for (let k = 0; k < nor.length; k += 3) { const l = Math.hypot(nor[k], nor[k + 1], nor[k + 2]) || 1; nor[k] /= l; nor[k + 1] /= l; nor[k + 2] /= l; }
+  return { pos, nor, uv, idx, tris: idx.length / 3, two };
+}
+
+// ---------------- .glb 輸出（glTF 2.0 二進位，貼圖內嵌） ----------------
+function makeGLB(m, imgBytes, mime) {
+  const parts = [], views = [], acc = []; let off = 0;
+  const add = (arr, target) => { const b = new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength); const v = { buffer: 0, byteOffset: off, byteLength: b.length }; if (target) v.target = target; views.push(v); parts.push(b); off += b.length; const pad = (4 - off % 4) % 4; if (pad) { parts.push(new Uint8Array(pad)); off += pad; } return views.length - 1; };
+  let mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity]; for (let k = 0; k < m.pos.length; k += 3) for (let c = 0; c < 3; c++) { mn[c] = Math.min(mn[c], m.pos[k + c]); mx[c] = Math.max(mx[c], m.pos[k + c]); }
+  const nv = m.pos.length / 3;
+  acc.push({ bufferView: add(m.pos, 34962), componentType: 5126, count: nv, type: 'VEC3', min: mn, max: mx });
+  acc.push({ bufferView: add(m.nor, 34962), componentType: 5126, count: nv, type: 'VEC3' });
+  acc.push({ bufferView: add(m.uv, 34962), componentType: 5126, count: nv, type: 'VEC2' });
+  acc.push({ bufferView: add(m.idx, 34963), componentType: 5125, count: m.idx.length, type: 'SCALAR' });
+  const iv = add(imgBytes);
+  const js = { asset: { version: '2.0', generator: '圖片轉 3D（手機本地）' }, scene: 0, scenes: [{ nodes: [0] }], nodes: [{ mesh: 0, name: 'model' }],
+    meshes: [{ name: 'model', primitives: [{ attributes: { POSITION: 0, NORMAL: 1, TEXCOORD_0: 2 }, indices: 3, material: 0 }] }],
+    materials: [{ name: 'tex', pbrMetallicRoughness: { baseColorTexture: { index: 0 }, metallicFactor: 0, roughnessFactor: 0.85 }, doubleSided: !m.two }],
+    textures: [{ source: 0, sampler: 0 }], samplers: [{ magFilter: 9729, minFilter: 9987, wrapS: 33071, wrapT: 33071 }], images: [{ bufferView: iv, mimeType: mime }],
+    buffers: [{ byteLength: off }], bufferViews: views, accessors: acc };
+  let jb = new TextEncoder().encode(JSON.stringify(js)); const jp = (4 - jb.length % 4) % 4; if (jp) { const t = new Uint8Array(jb.length + jp); t.set(jb); t.fill(32, jb.length); jb = t; }
+  const total = 12 + 8 + jb.length + 8 + off, out = new Uint8Array(total), dv = new DataView(out.buffer);
+  dv.setUint32(0, 0x46546C67, true); dv.setUint32(4, 2, true); dv.setUint32(8, total, true); dv.setUint32(12, jb.length, true); dv.setUint32(16, 0x4E4F534A, true); out.set(jb, 20);
+  let p = 20 + jb.length; dv.setUint32(p, off, true); dv.setUint32(p + 4, 0x004E4942, true); p += 8; for (const b of parts) { out.set(b, p); p += b.length; }
+  return new Blob([out], { type: 'model/gltf-binary' });
+}
+
+// ---------------- 3D 預覽（觸控旋轉、縮放、平移） ----------------
+const view = $('view'), R3 = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+R3.setPixelRatio(Math.min(2, devicePixelRatio || 1)); R3.outputColorSpace = THREE.SRGBColorSpace; R3.toneMapping = THREE.ACESFilmicToneMapping; R3.toneMappingExposure = 1.05; view.prepend(R3.domElement);
+const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(35, 1, 0.01, 100), ctl = new OrbitControls(cam, R3.domElement);
+ctl.enableDamping = true; ctl.dampingFactor = 0.09; ctl.rotateSpeed = 0.9; ctl.minDistance = 0.4; ctl.maxDistance = 8; ctl.autoRotateSpeed = 2.5;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x404858, 1.6)); const key = new THREE.DirectionalLight(0xffffff, 1.6); key.position.set(1.5, 2.5, 2.5); scene.add(key); const rim = new THREE.DirectionalLight(0xbfd8ff, 0.8); rim.position.set(-2, 1, -2.5); scene.add(rim);
+const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.5, 48), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.28, depthWrite: false })); shadow.rotation.x = -Math.PI / 2; scene.add(shadow);
+let obj = null, tilt = null;
+function resize() { const w = view.clientWidth, h = view.clientHeight; R3.setSize(w, h, false); cam.aspect = w / Math.max(1, h); cam.updateProjectionMatrix(); }
+new ResizeObserver(resize).observe(view); resize();
+function resetView() {   // 依模型大小取景，寬的東西也整個看得到
+  const two = !obj || obj.userData.two; let c = new THREE.Vector3(0, 0.5, 0), r = 0.75;
+  if (obj) { obj.geometry.computeBoundingSphere(); c = obj.geometry.boundingSphere.center.clone(); r = obj.geometry.boundingSphere.radius; }
+  const fit = Math.max(r / Math.sin(THREE.MathUtils.degToRad(cam.fov / 2)), r / Math.sin(Math.atan(Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * cam.aspect))) * 1.08;
+  const dir = two ? new THREE.Vector3(0.53, 0.28, 0.8).normalize() : new THREE.Vector3(0, 0.12, 1).normalize();
+  ctl.target.copy(c); cam.position.copy(c).addScaledVector(dir, fit); ctl.minDistance = r * 0.6; ctl.maxDistance = fit * 4; cam.near = r * 0.02; cam.far = fit * 10; cam.updateProjectionMatrix(); ctl.update();
+}
+function show(m, texCanvas) {
+  if (obj) { obj.geometry.dispose(); obj.material.map && obj.material.map.dispose(); obj.material.dispose(); scene.remove(obj); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(m.pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(m.nor, 3)); g.setAttribute('uv', new THREE.BufferAttribute(m.uv, 2)); g.setIndex(new THREE.BufferAttribute(m.idx, 1));
+  const tx = new THREE.CanvasTexture(texCanvas); tx.flipY = false; tx.colorSpace = THREE.SRGBColorSpace; tx.anisotropy = 4;
+  obj = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: tx, roughness: 0.85, metalness: 0, side: m.two ? THREE.FrontSide : THREE.DoubleSide })); obj.userData.two = m.two; scene.add(obj);
+  g.computeBoundingBox(); const bb = g.boundingBox; shadow.scale.setScalar(Math.max(0.3, (bb.max.x - bb.min.x) * 1.1)); shadow.position.y = -0.002; shadow.visible = m.two;
+  $('empty').style.display = 'none'; resetView();
+}
+$('vSpin').onclick = e => { ctl.autoRotate = !ctl.autoRotate; e.currentTarget.setAttribute('aria-pressed', ctl.autoRotate); };
+$('vReset').onclick = () => resetView();
+$('vTilt').onclick = async e => {   // 傾斜手機 → 模型跟著轉一點（看 2.5D 視差）
+  const b = e.currentTarget; if (tilt) { removeEventListener('deviceorientation', tilt); tilt = null; b.setAttribute('aria-pressed', 'false'); if (obj) obj.rotation.set(0, 0, 0); return; }
+  try { if (window.DeviceOrientationEvent && DeviceOrientationEvent.requestPermission) { if (await DeviceOrientationEvent.requestPermission() !== 'granted') throw new Error('沒有取得權限'); } } catch (err) { msg('無法使用傾斜感應：' + err.message); return; }
+  let b0 = null, g0 = null; tilt = ev => { if (!obj || ev.beta == null) return; if (b0 == null) { b0 = ev.beta; g0 = ev.gamma; } obj.rotation.y = THREE.MathUtils.clamp((ev.gamma - g0) * 0.012, -0.45, 0.45); obj.rotation.x = THREE.MathUtils.clamp((ev.beta - b0) * 0.008, -0.3, 0.3); };
+  addEventListener('deviceorientation', tilt); b.setAttribute('aria-pressed', 'true');
+};
+(function loop() { requestAnimationFrame(loop); ctl.update(); R3.render(scene, cam); })();
+
+// ---------------- 流程 ----------------
+async function rebuild() {
+  const o = { mode: S.mode, res: +$('oRes').value, rel: +$('oRel').value / 100, thk: +$('oThk').value / 100 };
+  prog('建立 3D 網格…', 90, ''); await tick();
+  const m = buildMesh(S.src, S.mask, S.depth, o);
+  if (!m || m.tris < 8) { msg('找不到主體。可關掉「自動去背」再試，或換一張主體清楚、背景單純的圖。', 'err'); prog('沒有生成模型', 0, ''); return; }
+  const tex = bleedTex(S.src, S.mask); show(m, tex);
+  prog('打包 .glb…', 96, ''); await tick();
+  const jpg = new Uint8Array(await (await new Promise(r => tex.toBlob(r, 'image/jpeg', 0.9))).arrayBuffer());
+  const glb = makeGLB(m, jpg, 'image/jpeg'); if (S.glbURL) URL.revokeObjectURL(S.glbURL); S.glbURL = URL.createObjectURL(glb);
+  setDl('dGlb', S.glbURL, `3d_${S.mode === '360' ? '360' : '2.5d'}_${stamp()}.glb`);
+  prog('完成', 100, `${m.tris.toLocaleString()} 個三角面・${(glb.size / 1048576).toFixed(1)} MB・${S.mode === '360' ? '360° 立體（背面為推估）' : '2.5D 深度浮雕'}`);
+  window.__last = { tris: m.tris, glbBytes: glb.size };
+}
+async function generate() {
+  if (!S.src || S.busy) return; S.busy = true; $('go').disabled = true; msg(''); const warn = [];
+  try {
+    const needAI = $('oBg').checked || $('oDepth').checked;
+    if (needAI && !(await cachedCount()) && !window.__noConfirm && !confirm('第一次使用要下載 AI 模型約 70 MB（之後存在手機裡，不再下載）。建議連上 Wi-Fi。要繼續嗎？')) { S.busy = false; $('go').disabled = false; prog('已取消', 0, ''); return; }
+    prog('讀取圖片', 3, ''); await tick();
+    if ($('oBg').checked) {
+      try { S.mask = await aiMask(S.src, 5, 45); }
+      catch (e) { console.warn(e); warn.push('AI 去背無法使用（' + why(e) + '），改用背景顏色判斷'); prog('以背景顏色去背…', 40, ''); await tick(); S.mask = keyMask(S.src); }
+    } else S.mask = new Float32Array(S.src.width * S.src.height).fill(1);
+    const cut = cutCanvas(S.src, S.mask); thumb('tCut', cut);
+    if (S.cutURL) URL.revokeObjectURL(S.cutURL); S.cutURL = URL.createObjectURL(await new Promise(r => cut.toBlob(r, 'image/png'))); setDl('dCut', S.cutURL, `cutout_${stamp()}.png`);
+    S.depth = null;
+    if ($('oDepth').checked) {
+      try { S.depth = await aiDepth(S.src, 50, 38); }
+      catch (e) { console.warn(e); warn.push('AI 深度無法使用（' + why(e) + '），改用輪廓推估形狀'); }
+    }
+    if (window.__testDepth) S.depth = window.__testDepth(S.src.width, S.src.height);
+    if (S.depth) { const dc = depthCanvas(S.src, S.depth, S.mask); thumb('tDep', dc); if (S.depURL) URL.revokeObjectURL(S.depURL); S.depURL = URL.createObjectURL(await new Promise(r => depthCanvas(S.src, S.depth, null).toBlob(r, 'image/png'))); setDl('dDep', S.depURL, `depth_${stamp()}.png`); }
+    else { const t = $('tDep'); t.width = t.height = 8; setDl('dDep', null); }
+    await rebuild();
+    if (warn.length) msg(warn.join('；'));
+  } catch (e) { console.error(e); msg('生成失敗：' + (e.message || e), 'err'); prog('失敗', 0, ''); }
+  S.busy = false; $('go').disabled = false;
+}
+$('go').onclick = generate;
+async function cacheInfo() {
+  let t = ''; try { const n = await cachedCount(); if (navigator.storage && navigator.storage.estimate) { const e = await navigator.storage.estimate(); t = `手機裡已存模型檔 ${n} 個，網站共用空間 ${(e.usage / 1048576).toFixed(0)} MB`; } else t = `手機裡已存模型檔 ${n} 個`; } catch (e) { }
+  $('cacheInfo').textContent = t;
+}
+$('clr').onclick = async () => { if (!confirm('清除後下次使用要重新下載約 70 MB，確定？')) return; try { await caches.delete('transformers-cache'); RMBG = DEPTH = null; } catch (e) { } cacheInfo(); };
+cacheInfo();
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => { });
+window.__app = { S, buildMesh, makeGLB, generate, rebuild };
+</script>
+</body>
+</html>
