@@ -107,6 +107,9 @@ input[type=range]{width:46%;accent-color:var(--acc)}input[type=checkbox]{width:2
       <label class="opt"><span>自動去背<small>把主體從背景切出來</small></span><input id="oBg" type="checkbox" checked></label>
       <label class="opt"><span>AI 深度<small>用深度模型讀出遠近；關掉則只依輪廓推估形狀</small></span><input id="oDepth" type="checkbox" checked></label>
       <label class="opt"><span>立體感<small id="vRel">中</small></span><input id="oRel" type="range" min="0" max="100" value="50"></label>
+      <div class="opt" id="mvRow" hidden style="display:block;padding:8px 0;border-top:1px solid var(--line)"><span>多視角圖<small id="mvInfo" style="display:block;color:var(--mute);font-size:12px;font-weight:400"></small></span>
+        <div class="row" id="mvSel" style="margin-top:6px;flex-wrap:wrap"></div>
+        <div class="row" style="margin-top:6px"><button id="mvFace">側面朝向：左</button><button id="mvOff">當成一張圖</button></div></div>
       <div class="opt" id="rowShape" style="display:block;padding:8px 0"><span>造型<small style="display:block;color:var(--mute);font-size:12px;font-weight:400">公仔：四肢、身體各自圓潤（側面、背面較自然）／吊飾：壓克力片般的固定厚度</small></span>
         <div class="seg" role="group" aria-label="造型" id="shpSeg" style="margin-top:6px"><button data-v="fig" aria-pressed="true">立體公仔</button><button data-v="charm" aria-pressed="false">吊飾片</button></div></div>
       <label class="opt" id="rowThk"><span>厚度<small id="vThk">中</small></span><input id="oThk" type="range" min="0" max="100" value="55"></label>
@@ -274,6 +277,7 @@ async function loadFile(f) {
   catch (e) { bmp = await new Promise((ok, no) => { const im = new Image(); im.onload = () => ok(im); im.onerror = no; im.src = URL.createObjectURL(f); }); }
   const W0 = bmp.width, H0 = bmp.height, k = Math.min(1, 1024 / Math.max(W0, H0)), cv = document.createElement('canvas');
   cv.width = Math.max(8, Math.round(W0 * k)); cv.height = Math.max(8, Math.round(H0 * k)); cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height);
+  if (k < 1) cv.full = bmp;   // 保留原尺寸（多視角圖拆開時用，畫質較好）
   return cv;
 }
 async function onFile(e) {
@@ -420,6 +424,15 @@ function buildMesh(cv, mask, depth, o) {
     if (charm) { const r = Math.min(Hc * rnd * 0.95, Rl[k] * 0.9 + 0.5); return d >= r ? Hc : Hc - r + Math.sqrt(Math.max(0, r * r - (r - d) * (r - d))); }
     const rl = Math.max(1, Rl[k]), t = Math.min(1, d / rl); return rl * ts * Math.pow(1 - Math.pow(1 - t, pw), 1 / pw);
   };
+  // 有側面圖（多視角）：每一列的前後中心與前後最大範圍，讓姿勢（駝背、頭往前）與厚度照側面
+  let SP = null;
+  if (two && !charm && o.side) { const pr = sideProfile(o.side.m, o.side.w, o.side.h); let fy0 = -1, fy1 = -1; for (let y = 0; y < H; y++) for (let x = 0; x < W; x += 2) if (mask[y * W + x] > 0.5) { if (fy0 < 0) fy0 = y; fy1 = y; break; }
+    if (pr && fy1 > fy0) { const k = (fy1 - fy0) / Math.max(1, pr.y1 - pr.y0), f = o.side.face || pr.face; let org = 0, no = 0; for (let y = Math.round(pr.y0 + (pr.y1 - pr.y0) * 0.35); y < pr.y0 + (pr.y1 - pr.y0) * 0.6; y++) if (!isNaN(pr.lo[y])) { org += (pr.lo[y] + pr.hi[y]) / 2; no++; } org = no ? org / no : o.side.w / 2;
+      SP = []; for (let j = 0; j < gh; j++) { const t = (j * sy - fy0) / (fy1 - fy0); let r = null; if (t >= -0.02 && t <= 1.02) { const ys = Math.round(pr.y0 + Math.min(1, Math.max(0, t)) * (pr.y1 - pr.y0)); for (let dd = 0; dd < 6 && !r; dd++) for (const yy of [ys - dd, ys + dd]) if (!r && yy >= 0 && yy < o.side.h && !isNaN(pr.lo[yy])) { const a = (pr.lo[yy] - org) * f * k / sx, b = (pr.hi[yy] - org) * f * k / sx, fr = Math.max(a, b), bk = Math.min(a, b); r = [(fr + bk) / 2, (fr - bk) / 2, (fr - bk) / 2]; } } SP.push(r); }
+      { const ws = SP.filter(Boolean).map(r => r[1]).sort((a, b) => a - b), md = ws[ws.length >> 1] || 1, mid = Math.round(gh * 0.45);   // 尾巴等貼在身上的部分會讓那一列變很寬：太寬的列沿用上一列的中心、前後移動也限速
+        for (const [a0, a1, st] of [[mid, gh, 1], [mid - 1, -1, -1]]) { let pv = null; for (let j = a0; j !== a1; j += st) { const r = SP[j]; if (!r) continue; if (pv) { if (r[1] > md * 1.8) { r[0] = pv[0]; r[1] = r[2] = Math.min(r[1], md * 1.3); } r[0] = pv[0] + Math.max(-0.7, Math.min(0.7, r[0] - pv[0])); } pv = r; } } }
+      for (let it = 0; it < 2; it++) { const c = SP.map(r => r && r.slice()); for (let j = 1; j < gh - 1; j++) if (SP[j] && c[j - 1] && c[j + 1]) for (let q = 0; q < 3; q++) SP[j][q] = (c[j - 1][q] + c[j][q] * 2 + c[j + 1][q]) / 4; }
+      SP = SP.map(r => r && [r[0] * cell, r[1] * cell * 1.05, r[2] * cell * 1.05]); } }
   // 頂點（正面；360 模式再加背面）
   const vid = new Int32Array(n).fill(-1), P = [], UV = [], edge = new Uint8Array(n), hb = []; let nv = 0;
   for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
@@ -429,8 +442,9 @@ function buildMesh(cv, mask, depth, o) {
     let x = i, y = j, f = 0;
     if (cnt) { edge[k] = 1; const m = M[k], m2 = mo / cnt, l = Math.hypot(ex, ey) || 1; f = m > m2 + 1e-3 ? Math.min(0.9, Math.max(0, (m - 0.5) / (m - m2))) : 0; x += ex / l * f; y += ey / l * f; }   // 邊緣頂點推到半透明 0.5 的位置，輪廓才平順
     const d = edge[k] ? 0 : Math.max(0, dist[k] - 0.5), fade = edge[k] ? 0 : Math.min(1, dist[k] / Math.max(2, dmax * 0.25)), h = two ? half(k, d) * cell : 0;
-    const z = two ? h + Math.max(-h * 0.6, R * dn[k] * fade) : R * dn[k] * fade;   // 正面不會凹到背面後面
-    hb.push(h); P.push((x - (gw - 1) / 2) * cell, ((gh - 1) / 2 - y) * cell, z); UV.push(x / (gw - 1), y / (gh - 1)); vid[k] = nv++;
+    const rz = SP && SP[j], zc = rz ? rz[0] : 0, hf = rz ? Math.min(h, rz[1]) : h, hk = rz ? Math.min(h * 0.97, rz[2]) : h * 0.97;
+    const z = two ? zc + hf + Math.max(-hf * 0.6, R * dn[k] * fade) : R * dn[k] * fade;   // 正面不會凹到背面後面
+    hb.push(zc - hk); P.push((x - (gw - 1) / 2) * cell, ((gh - 1) / 2 - y) * cell, z); UV.push(x / (gw - 1), y / (gh - 1)); vid[k] = nv++;
   }
   const I = [];
   for (let j = 0; j < gh - 1; j++) for (let i = 0; i < gw - 1; i++) {
@@ -439,7 +453,7 @@ function buildMesh(cv, mask, depth, o) {
   }
   const nf = nv, wsrc = [];
   if (two) {   // 背面：同一輪廓、往後鼓；公仔模式輪廓點與正面重合（封閉），吊飾模式用側牆接起來
-    for (let k = 0; k < nf; k++) { P.push(P[k * 3], P[k * 3 + 1], -hb[k] * 0.97); UV.push(UV[k * 2], UV[k * 2 + 1]); }
+    for (let k = 0; k < nf; k++) { P.push(P[k * 3], P[k * 3 + 1], hb[k]); UV.push(UV[k * 2], UV[k * 2 + 1]); }
     for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) { const k = j * gw + i, v = vid[k]; if (v < 0 || edge[k]) continue; const fade = Math.min(1, dist[k] / Math.max(2, dmax * 0.25)); P[(nf + v) * 3 + 2] -= Math.max(0, R * dn[k] * fade) * 0.25; }
     const nI = I.length; for (let t = 0; t < nI; t += 3) I.push(I[t] + nf, I[t + 2] + nf, I[t + 1] + nf);
     if (charm) {   // 找出正面網格的外框邊，做四圈側牆（正面貼圖兩圈、背面貼圖兩圈，中間接縫在厚度一半處）
@@ -839,7 +853,7 @@ const dbPut = p => dbDo('readwrite', st => st.put(p)), dbGet = id => dbDo('reado
 function f2png(a, W, H) { const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d'), im = x.createImageData(W, H); for (let i = 0; i < W * H; i++) { const v = Math.round(Math.min(1, Math.max(0, a[i])) * 255); im.data[i * 4] = im.data[i * 4 + 1] = im.data[i * 4 + 2] = v; im.data[i * 4 + 3] = 255; } x.putImageData(im, 0, 0); return new Promise(r => c.toBlob(r, 'image/png')); }
 async function png2f(b, W, H) { const bm = await createImageBitmap(b), c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d'); x.drawImage(bm, 0, 0, W, H); const d = x.getImageData(0, 0, W, H).data, a = new Float32Array(W * H); for (let i = 0; i < W * H; i++) a[i] = d[i * 4] / 255; return a; }
 async function rebuildAll() { await rebuild(); if (RIG.H && RIG.rigged && S.mesh) await applyRig(false); await saveProject(); }   // 改設定後重新生成：已綁骨的會自動重新綁骨、保留動作設定
-function newProject() { RIG.rigged = false; S.bk = null; S.bkStyle = 'mirror'; bkUI(); $('mOpen').disabled = true; $('mWrap').hidden = true; S.pid = null; S.used = null; S.blobs = {}; S.mesh = null; RIG.H = null; RIG.tw = null; RIG.raw = null; RIG.auto = null; $('jWrap').hidden = true; $('tweak').hidden = true; $('rigCard').hidden = true; $('go').textContent = '開始生成'; lookClear(); applyLearnedSettings(); libRender(); }
+function newProject() { RIG.rigged = false; S.bk = null; S.bkStyle = 'mirror'; bkUI(); $('mOpen').disabled = true; $('mWrap').hidden = true; S.pid = null; S.used = null; S.blobs = {}; S.mesh = null; RIG.H = null; RIG.tw = null; RIG.raw = null; RIG.auto = null; $('jWrap').hidden = true; $('tweak').hidden = true; $('rigCard').hidden = true; $('go').textContent = '開始生成'; S.sheet = S.mv = S.side = null; mvUI(); lookClear(); applyLearnedSettings(); libRender(); }
 function lookClear(p) { LOOK = JSON.parse(JSON.stringify(LOOK0)); if (p && p.look) Object.assign(LOOK, p.look, { fur: Object.assign({}, LOOK0.fur, p.look.fur) }); S.srcData = S.paint = S.pmode = S.paintedCv = S.furMask = S.fur = null; $('lookCard').hidden = true; $('pWrap').hidden = true; PE.kind = null; lookUI(); }
 async function lookLoad(p) {   // 開啟專案：還原外觀設定、上色層、毛髮區域
   lookClear(p); const W = p.W, H = p.H;
@@ -854,6 +868,7 @@ async function saveProject() {
   if (S.blobs.depth === undefined) S.blobs.depth = S.depth ? await f2png(S.depth, W, H) : null;
   if (S.paint && !S.blobs.paint) { const c = document.createElement('canvas'); c.width = W; c.height = H; c.getContext('2d').putImageData(S.paint, 0, 0); S.blobs.paint = await new Promise(r => c.toBlob(r, 'image/png')); S.blobs.pmode = await f2png(S.pmode, W, H); }
   if (S.furMask && !S.blobs.fur) S.blobs.fur = await f2png(S.furMask, W, H);
+  if (S.side && !S.blobs.side) S.blobs.side = await f2png(S.side.m, S.side.w, S.side.h);
   if (S.bk && !S.blobs.bk) { S.blobs.bk = await new Promise(r => S.bk.cv.toBlob(r, 'image/jpeg', 0.9)); S.blobs.bkm = await f2png(S.bk.mask, S.bk.cv.width, S.bk.cv.height); }
   const old = S.pid ? await dbGet(S.pid) : null, d = new Date(now), p2 = n => String(n).padStart(2, '0');
   const p = { id: S.pid || 'p' + now, name: old ? old.name : `模型 ${p2(d.getMonth() + 1)}/${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}`, status: old ? old.status : 'gen', created: old ? old.created : now, updated: now,
@@ -861,6 +876,7 @@ async function saveProject() {
     set: { mode: S.mode, rel: +$('oRel').value, thk: +$('oThk').value, res: +$('oRes').value, back: S.bkStyle, shape: S.shape, rnd: +$('oRnd').value },
     bk: S.blobs.bk || null, bkm: S.blobs.bkm || null, bkW: S.bk ? S.bk.cv.width : 0, bkH: S.bk ? S.bk.cv.height : 0,
     rig: RIG.H && RIG.raw ? { kind: RIG.kind, H: RIG.H, face: RIG.face, auto: RIG.auto, method: RIG.method, desc: RIG.desc, bb: RIG.bb } : (old && old.rig && RIG.H ? old.rig : null), tw: RIG.tw || null,
+    side: S.side ? { m: S.blobs.side, w: S.side.w, h: S.side.h, face: S.side.face } : null,
     prompt: $('tP').value, look: LOOK, paint: S.paint ? S.blobs.paint : null, pmode: S.paint ? S.blobs.pmode : null, fur: S.furMask ? S.blobs.fur : null,
     thumb: shot(), glb: S.glbBlob, kind: RIG.raw ? RIG.kind : null };
   await dbPut(p); S.pid = p.id; $('go').textContent = '重新生成'; const dt = $('detail'); if (!/已儲存/.test(dt.textContent)) dt.textContent += (dt.textContent ? '・' : '') + '已儲存到「我的模型」';
@@ -871,7 +887,7 @@ async function openProject(id) {
   if (S.busy) return; const p = await dbGet(id); if (!p) return; S.busy = true;
   try {
     prog('開啟「' + p.name + '」…', 20, ''); const bm = await createImageBitmap(p.src), cv = document.createElement('canvas'); cv.width = p.W; cv.height = p.H; cv.getContext('2d').drawImage(bm, 0, 0, p.W, p.H);
-    S.src = cv; S.mask = await png2f(p.mask, p.W, p.H); S.depth = p.depth ? await png2f(p.depth, p.W, p.H) : null; S.blobs = { src: p.src, mask: p.mask, depth: p.depth }; S.used = p.used; S.pid = p.id; await lookLoad(p);
+    S.src = cv; S.mask = await png2f(p.mask, p.W, p.H); S.depth = p.depth ? await png2f(p.depth, p.W, p.H) : null; S.blobs = { src: p.src, mask: p.mask, depth: p.depth }; S.used = p.used; S.pid = p.id; await lookLoad(p); S.sheet = S.mv = null; S.side = null; if (p.side && p.side.m) { S.side = { m: await png2f(p.side.m, p.side.w, p.side.h), w: p.side.w, h: p.side.h, face: p.side.face }; S.blobs.side = p.side.m; } mvUI();
     $('oRel').value = p.set.rel; $('oThk').value = p.set.thk; $('oRes').value = p.set.res; ['oRel', 'oThk', 'oRes'].forEach(k => $(k).dispatchEvent(new Event('input'))); setMode(p.set.mode, true);
     if (p.used) { $('oBg').checked = p.used.bg; $('oDepth').checked = p.used.dep; }
     S.bk = null; if (p.bk && p.bkm) { const bb = await createImageBitmap(p.bk), bc = document.createElement('canvas'); bc.width = p.bkW; bc.height = p.bkH; bc.getContext('2d').drawImage(bb, 0, 0, p.bkW, p.bkH); S.bk = { cv: bc, mask: await png2f(p.bkm, p.bkW, p.bkH) }; S.blobs.bk = p.bk; S.blobs.bkm = p.bkm; }
@@ -1353,9 +1369,68 @@ $('gBack').onclick = () => sdTask(async () => {   // 推算背面：用正面去
   prog('背面去背中…', 98, ''); await tick(); let mk; try { mk = $('oBg').checked ? await aiMask(m, 90, 8) : keyMask(m); } catch (e) { mk = keyMask(m); }
   S.bk = { cv: m, mask: mk }; S.blobs.bk = S.blobs.bkm = null; S.busy = false; await setBack('photo'); prog('已用 AI 推算背面', 100, '背面樣式已切到「背面照」；不滿意可再按一次');
 });
+// ---------------- 多視角圖（三視圖）：拆成正面／側面／背面，側面決定前後厚度與姿勢，背面當背面照 ----------------
+const MVN = { front: '正面', side: '側面', back: '背面', none: '不用' };
+function cropF(a, W, x0, y0, w, h) { if (!a) return null; const o = new Float32Array(w * h); for (let y = 0; y < h; y++) o.set(a.subarray((y0 + y) * W + x0, (y0 + y) * W + x0 + w), y * w); return o; }
+function mvDetect(mask, W, H) {   // 只看上半身那一段（尾巴、腳不會跨到隔壁）找並排的人物，再沿主體往外長出各自的範圍
+  let Y0 = H, Y1 = -1; for (let y = 0; y < H; y++) for (let x = 0; x < W; x += 2) if (mask[y * W + x] > 0.5) { if (y < Y0) Y0 = y; Y1 = y; break; } if (Y1 - Y0 < 16) return null;
+  const b0 = Math.round(Y0 + (Y1 - Y0) * 0.1), b1 = Math.round(Y0 + (Y1 - Y0) * 0.6), col = new Int32Array(W); for (let y = b0; y < b1; y++) for (let x = 0; x < W; x++) if (mask[y * W + x] > 0.5) col[x]++;
+  const th = Math.max(2, Math.max(...col) * 0.05), gap = Math.max(2, Math.round(W * 0.01)), R = []; let s0 = -1, e0 = -1;
+  for (let x = 0; x <= W; x++) { const on = x < W && col[x] >= th; if (on) { if (s0 < 0) s0 = x; e0 = x; } else if (s0 >= 0 && (x - e0 > gap || x === W)) { let a = 0; for (let k = s0; k <= e0; k++) a += col[k]; R.push({ x0: s0, x1: e0, a }); s0 = -1; } }
+  const sm = Float32Array.from(col, (v, x) => { let t = 0, n = 0; for (let k = Math.max(0, x - 2); k <= Math.min(W - 1, x + 2); k++) { t += col[k]; n++; } return t / n; });
+  const split = r => {   // 人物貼得很近（爪子、尾巴重疊）時沒有空隙，改找很深的谷底切開
+    const mw = Math.max(8, (r.x1 - r.x0) * 0.12); let best = -1, br = 0.25;
+    for (let x = Math.ceil(r.x0 + mw); x <= r.x1 - mw; x++) { let l = 0, rr = 0; for (let k = r.x0; k < x; k++) l = Math.max(l, sm[k]); for (let k = x + 1; k <= r.x1; k++) rr = Math.max(rr, sm[k]); const v = sm[x] / Math.max(1, Math.min(l, rr)); if (v < br) { br = v; best = x; } }
+    if (best < 0) return [r]; const A = { x0: r.x0, x1: best - 1, a: 0 }, B = { x0: best + 1, x1: r.x1, a: 0 }; for (const c of [A, B]) for (let k = c.x0; k <= c.x1; k++) c.a += col[k]; return [...split(A), ...split(B)];
+  };
+  const R2 = R.flatMap(split), ma = Math.max(0, ...R2.map(r => r.a)), V = R2.filter(r => r.a >= ma * 0.2); if (V.length < 2) return null;
+  const L = new Int32Array(W * H).fill(-1), q = new Int32Array(W * H); let h = 0, t = 0;
+  for (let y = b0; y < b1; y++) for (let x = 0; x < W; x++) { const i = y * W + x; if (mask[i] <= 0.5) continue; const k = V.findIndex(r => x >= r.x0 && x <= r.x1); if (k >= 0) { L[i] = k; q[t++] = i; } }
+  while (h < t) { const i = q[h++], x = i % W, y = (i / W) | 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue; const j = yy * W + xx; if (L[j] < 0 && mask[j] > 0.5) { L[j] = L[i]; q[t++] = j; } } }
+  const C = V.map(() => ({ x0: W, x1: -1, y0: H, y1: -1 }));
+  for (let i = 0; i < W * H; i++) { if (mask[i] <= 0.5) continue; const x = i % W, y = (i / W) | 0; if (L[i] < 0) { let best = 0, bd = Infinity; V.forEach((r, k) => { const d = Math.abs(x - (r.x0 + r.x1) / 2); if (d < bd) { bd = d; best = k; } }); L[i] = best; } const c = C[L[i]]; if (x < c.x0) c.x0 = x; if (x > c.x1) c.x1 = x; if (y < c.y0) c.y0 = y; if (y > c.y1) c.y1 = y; }
+  const hh = Y1 - Y0; if (C.some(c => c.y0 - Y0 > hh * 0.12 || Y1 - c.y1 > hh * 0.15)) return null;   // 每個都要從頂到底（像垂下的手臂、單張圖的分支就不算）
+  const w = V.map(r => r.x1 - r.x0), roles = V.length >= 3 ? V.map((r, i) => ['front', 'side', 'back'][i] || 'none') : (Math.min(...w) / Math.max(...w) > 0.8 ? ['front', 'back'] : w[0] >= w[1] ? ['front', 'side'] : ['side', 'front']);
+  return { comps: C, roles, face: 0, L };
+}
+function sideProfile(m, w, h) {   // 側面每一列主體（不含尾巴等分支）的前後範圍
+  const runsAt = y => { const r = []; let s = -1; for (let x = 0; x <= w; x++) { const on = x < w && m[y * w + x] > 0.5; if (on && s < 0) s = x; if (!on && s >= 0) { r.push([s, x - 1]); s = -1; } } return r; };
+  let y0 = h, y1 = -1; for (let y = 0; y < h; y++) if (runsAt(y).length) { if (y < y0) y0 = y; y1 = y; } if (y1 < 0) return null;
+  const lo = new Float32Array(h).fill(NaN), hi = new Float32Array(h).fill(NaN), mid = Math.round(y0 + (y1 - y0) * 0.45);
+  const walk = (from, to, st) => { let prev = null; for (let y = from; y !== to; y += st) { const r = runsAt(y); if (!r.length) { prev = null; continue; } let best = r[0], bs = -Infinity;
+    for (const q of r) { const sc = prev ? Math.min(q[1], prev[1]) - Math.max(q[0], prev[0]) : q[1] - q[0]; if (sc > bs) { bs = sc; best = q; } } prev = best; lo[y] = best[0]; hi[y] = best[1]; } };
+  walk(mid, y0 - 1, -1); walk(mid, y1 + 1, 1);
+  let face = 0; { const c = (a, b) => { let s = 0, n = 0; for (let y = Math.round(y0 + (y1 - y0) * a); y < y0 + (y1 - y0) * b; y++) if (!isNaN(lo[y])) { s += (lo[y] + hi[y]) / 2; n++; } return n ? s / n : 0; }; face = c(0, 0.2) - c(0.35, 0.6) >= 0 ? 1 : -1; }   // 頭通常比軀幹往前凸 → 猜面向
+  return { lo, hi, y0, y1, face };
+}
+function mvApply() {   // 依指定的角色把整張圖拆開
+  const sh = S.sheet, mv = S.mv, W = sh.src.width, H = sh.src.height, pick = role => { const i = mv.roles.indexOf(role); return i < 0 ? null : mv.comps[i]; };
+  const box = c => { const m = Math.round(Math.max(c.x1 - c.x0, c.y1 - c.y0) * 0.04), x0 = Math.max(0, c.x0 - m), y0 = Math.max(0, c.y0 - m), x1 = Math.min(W - 1, c.x1 + m), y1 = Math.min(H - 1, c.y1 + m); return [x0, y0, x1 - x0 + 1, y1 - y0 + 1]; };
+  const only = (c, b) => { const k = mv.comps.indexOf(c), a = cropF(sh.mask, W, ...b), w = b[2]; for (let i = 0; i < a.length; i++) { const j = (b[1] + ((i / w) | 0)) * W + b[0] + i % w; if (mv.L[j] !== k) a[i] = 0; } return a; };   // 只留自己這個人物的主體
+  const hi = b => {   // 從原尺寸圖裁切（最長邊最多 1024），遮罩與深度跟著放大
+    const full = sh.src.full, r = full ? full.width / W : 1, f = Math.min(r, 1024 / Math.max(b[2], b[3])), w = Math.max(8, Math.round(b[2] * f)), h = Math.max(8, Math.round(b[3] * f)), c = document.createElement('canvas'); c.width = w; c.height = h;
+    c.getContext('2d').drawImage(full || sh.src, b[0] * r, b[1] * r, b[2] * r, b[3] * r, 0, 0, w, h); const rs = a => { if (!a || f === 1) return a; const o = new Float32Array(w * h); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) o[y * w + x] = sample(a, b[2], b[3], x / f, y / f); return o; }; return [c, rs]; };
+  const f = pick('front');
+  if (!f) { S.src = sh.src; S.mask = sh.mask; S.depth = sh.depth; S.side = null; }
+  else { const b = box(f), [fc, rs] = hi(b); S.src = fc; S.mask = rs(only(f, b)); S.depth = rs(cropF(sh.depth, W, ...b));
+    const sd = pick('side'); if (sd) { const bs = box(sd), m = only(sd, bs), pr = sideProfile(m, bs[2], bs[3]); S.side = pr ? { m, w: bs[2], h: bs[3], face: mv.face || pr.face } : null; } else S.side = null;
+    const bk = pick('back'); if (bk) { const bb = box(bk), [bc, rb] = hi(bb); S.bk = { cv: bc, mask: rb(only(bk, bb)) }; S.bkStyle = 'photo'; } else if (S.bkStyle === 'photo') { S.bk = null; S.bkStyle = 'mirror'; } bkUI(); }
+  S.srcData = S.paint = S.pmode = S.paintedCv = S.furMask = null; S.blobs = {}; thumb('tSrc', S.src); const cut = cutCanvas(S.src, S.mask); thumb('tCut', cut); S.cutCv = cut;
+  if (S.depth) thumb('tDep', depthCanvas(S.src, S.depth, S.mask)); mvUI();
+}
+function mvUI() {
+  const on = !!(S.sheet && S.mv); $('mvRow').hidden = !on; if (!on) return; const mv = S.mv;
+  $('mvInfo').textContent = `偵測到 ${mv.comps.length} 個角度（由左到右）；正面用來建模，側面決定前後厚度與姿勢，背面當背面貼圖`;
+  $('mvSel').innerHTML = mv.comps.map((c, i) => `<label style="display:flex;align-items:center;gap:4px">第 ${i + 1} 個<select data-i="${i}" style="font-size:15px;padding:6px;border-radius:8px">${Object.entries(MVN).map(([k, n]) => `<option value="${k}"${mv.roles[i] === k ? ' selected' : ''}>${n}</option>`).join('')}</select></label>`).join('');
+  $('mvFace').textContent = '側面朝向：' + ((S.side ? S.side.face : mv.face || 1) > 0 ? '右' : '左'); $('mvFace').hidden = !mv.roles.includes('side');
+}
+async function mvRedo() { if (!S.sheet) return; if (S.busy) { clearTimeout(mvRedo.t); mvRedo.t = setTimeout(mvRedo, 600); return; } mvApply(); S.busy = true; try { await rebuildAll(); } finally { S.busy = false; } }
+$('mvSel').onchange = e => { const s = e.target.closest('select'); if (!s) return; const mv = S.mv, i = +s.dataset.i, v = s.value; if (v !== 'none') mv.roles = mv.roles.map((r, j) => j !== i && r === v ? 'none' : r); mv.roles[i] = v; mvRedo(); };
+$('mvFace').onclick = () => { if (!S.mv) return; S.mv.face = -((S.side && S.side.face) || 1); mvRedo(); };
+$('mvOff').onclick = () => { if (!S.mv) return; S.mv.roles = S.mv.roles.map(() => 'none'); mvRedo(); };
 // ---------------- 流程 ----------------
 async function rebuild() {
-  const o = { mode: S.mode, res: +$('oRes').value, rel: +$('oRel').value / 100, thk: +$('oThk').value / 100, rnd: +$('oRnd').value / 100, shape: S.shape };
+  const o = { mode: S.mode, res: +$('oRes').value, rel: +$('oRel').value / 100, thk: +$('oThk').value / 100, rnd: +$('oRnd').value / 100, shape: S.shape, side: S.side };
   prog('建立 3D 網格…', 90, ''); await tick();
   const m = buildMesh(S.src, S.mask, S.depth, o);
   if (!m || m.tris < 8) { msg('找不到主體。可關掉「自動去背」再試，或換一張主體清楚、背景單純的圖。', 'err'); prog('沒有生成模型', 0, ''); return; }
@@ -1383,7 +1458,8 @@ async function generate() {
       try { S.depth = await aiDepth(S.src, 50, 38); }
       catch (e) { console.warn(e); warn.push('AI 深度無法使用（' + why(e) + '），改用輪廓推估形狀'); }
     }
-    if (window.__testDepth) S.depth = window.__testDepth(S.src.width, S.src.height);
+    if (window.__testDepth) S.depth = window.__testDepth(S.src.width, S.src.height); if (window.__testMask) S.mask = window.__testMask(S.src);   // 測試用
+    S.sheet = null; S.mv = null; S.side = null; { const mv = mvDetect(S.mask, S.src.width, S.src.height); if (mv) { S.sheet = { src: S.src, mask: S.mask, depth: S.depth }; S.mv = mv; mvApply(); warn.push(`偵測到多視角圖：已自動拆成${mv.roles.filter(r => r !== 'none').map(r => MVN[r]).join('、')}，可在設定裡調整`); } else mvUI(); }
     if (S.depth) { const dc = depthCanvas(S.src, S.depth, S.mask); thumb('tDep', dc); if (S.depURL) URL.revokeObjectURL(S.depURL); S.depURL = URL.createObjectURL(await new Promise(r => depthCanvas(S.src, S.depth, null).toBlob(r, 'image/png'))); setDl('dDep', S.depURL, `depth_${stamp()}.png`); }
     else { const t = $('tDep'); t.width = t.height = 8; setDl('dDep', null); }
     S.used = want; S.blobs = {}; await rebuildAll();
