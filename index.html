@@ -73,6 +73,31 @@ input[type=range]{width:46%;accent-color:var(--acc)}input[type=checkbox]{width:2
     </div>
   </section>
 
+  <section class="card" id="aiCard">
+    <h2 style="font-size:17px;margin:0 0 8px">提示詞與 AI 修圖</h2>
+    <textarea id="tP" rows="3" placeholder="輸入英文提示詞，或點下面的風格標籤；選好圖片後也可以「從圖片產生提示詞」" style="width:100%;box-sizing:border-box;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:15px;resize:vertical"></textarea>
+    <div class="chips" id="tAc" hidden style="margin-top:6px"></div>
+    <div class="row" style="margin-top:8px"><button id="tCap" disabled>🔍 從圖片產生提示詞</button><button id="tCopy">複製</button><button id="tClr">清空</button></div>
+    <div class="chips" id="tCat"></div>
+    <div class="chips" id="tLib" style="margin-top:6px"></div>
+    <div class="sub" style="margin:6px 0 0">提示詞會跟著模型一起儲存，也可以複製到其他 AI 繪圖工具使用</div>
+    <h3 style="font-size:15px;margin:14px 0 6px">AI 修補（不用提示詞）</h3>
+    <div class="row"><button id="hOpen" disabled>🩹 塗抹要補的地方</button></div>
+    <div class="row" id="hExt" style="margin-top:6px"><button data-x="b" disabled>↓ 補下面</button><button data-x="t" disabled>↑ 補上面</button><button data-x="l" disabled>← 補左</button><button data-x="r" disabled>→ 補右</button></div>
+    <div class="sub" style="margin:6px 0 0">塗掉不要的東西或破洞讓 AI 補上；圖被切掉（例如沒拍到腳）可往那個方向延伸畫面</div>
+    <h3 style="font-size:15px;margin:14px 0 6px">提示詞生成（SD-Turbo，需高階手機）</h3>
+    <div class="row"><button id="gT2I">🎨 用提示詞生成圖片</button><button id="gBack" disabled>🔄 AI 推算背面</button></div>
+    <label class="opt"><span>修補／延伸時套用提示詞<small>例如塗掉衣服、提示詞寫 armor 就換成盔甲</small></span><input id="gUseP" type="checkbox"></label>
+    <label class="opt"><span>重繪強度<small id="gStrV">75%</small></span><input id="gStr" type="range" min="30" max="95" value="75"></label>
+    <div class="sub" style="margin:6px 0 0" id="gInfo">第一次使用要下載約 2.6 GB；需支援 WebGPU 的手機（建議 8 GB 記憶體以上）。模型授權：Stability AI 非商用</div>
+    <div id="hWrap" hidden style="margin-top:10px">
+      <label class="opt"><span>筆刷大小</span><input id="hSz" type="range" min="4" max="80" value="28"></label>
+      <canvas id="hEd" style="width:100%;display:block;border-radius:10px;touch-action:none;margin-top:4px"></canvas>
+      <div class="sub" style="margin:6px 0 0">紅色是要讓 AI 重畫的地方</div>
+      <div class="row" style="margin-top:8px"><button id="hUndo">↶ 復原</button><button id="hCancel">取消</button><button id="hRun" class="pri">AI 補上</button></div>
+    </div>
+  </section>
+
   <section class="card">
     <div class="seg" role="group" aria-label="輸出類型">
       <button id="m360" aria-pressed="true">360° 立體模型</button>
@@ -82,7 +107,10 @@ input[type=range]{width:46%;accent-color:var(--acc)}input[type=checkbox]{width:2
       <label class="opt"><span>自動去背<small>把主體從背景切出來</small></span><input id="oBg" type="checkbox" checked></label>
       <label class="opt"><span>AI 深度<small>用深度模型讀出遠近；關掉則只依輪廓推估形狀</small></span><input id="oDepth" type="checkbox" checked></label>
       <label class="opt"><span>立體感<small id="vRel">中</small></span><input id="oRel" type="range" min="0" max="100" value="50"></label>
-      <label class="opt" id="rowThk"><span>厚度（推估背面）<small id="vThk">中</small></span><input id="oThk" type="range" min="0" max="100" value="55"></label>
+      <div class="opt" id="rowShape" style="display:block;padding:8px 0"><span>造型<small style="display:block;color:var(--mute);font-size:12px;font-weight:400">公仔：四肢、身體各自圓潤（側面、背面較自然）／吊飾：壓克力片般的固定厚度</small></span>
+        <div class="seg" role="group" aria-label="造型" id="shpSeg" style="margin-top:6px"><button data-v="fig" aria-pressed="true">立體公仔</button><button data-v="charm" aria-pressed="false">吊飾片</button></div></div>
+      <label class="opt" id="rowThk"><span>厚度<small id="vThk">中</small></span><input id="oThk" type="range" min="0" max="100" value="55"></label>
+      <label class="opt" id="rowRnd"><span>邊緣圓角<small id="vRnd">中</small></span><input id="oRnd" type="range" min="0" max="100" value="75"></label>
       <div class="opt" id="rowBack" style="display:block;border-top:1px solid var(--line);padding:8px 0">
         <span>背面樣式<small style="display:block;color:var(--mute);font-size:12px;font-weight:400">只影響 360° 模型的背面貼圖</small></span>
         <div class="seg" role="group" aria-label="背面樣式" id="bkSeg" style="margin-top:6px"><button data-b="mirror" aria-pressed="true">鏡像正面</button><button data-b="solid" aria-pressed="false">素色延伸</button><button data-b="photo" aria-pressed="false">背面照</button></div>
@@ -222,12 +250,15 @@ const RES = [128, 192, 272], RES_T = ['低（約 1 萬面）', '中（約 3 萬�
 const lvl = v => v < 25 ? '弱' : v < 45 ? '中弱' : v < 60 ? '中' : v < 80 ? '中強' : '強';
 
 // ---------------- 介面 ----------------
-function setMode(m, quiet) { S.mode = m; $('m360').setAttribute('aria-pressed', m === '360'); $('m25').setAttribute('aria-pressed', m === '25'); $('rowThk').style.display = $('rowBack').style.display = m === '360' ? '' : 'none'; if (!quiet && S.src && S.mask && !S.busy) { S.busy = true; rebuildAll().finally(() => { S.busy = false; }); } }
+function setMode(m, quiet) { S.mode = m; $('m360').setAttribute('aria-pressed', m === '360'); $('m25').setAttribute('aria-pressed', m === '25'); $('rowThk').style.display = $('rowBack').style.display = $('rowShape').style.display = $('rowRnd').style.display = m === '360' ? '' : 'none'; if (!quiet && S.src && S.mask && !S.busy) { S.busy = true; rebuildAll().finally(() => { S.busy = false; }); } }
 $('m360').onclick = () => setMode('360'); $('m25').onclick = () => setMode('25');
 $('oRel').oninput = e => { $('vRel').textContent = lvl(+e.target.value); };
 $('oThk').oninput = e => { $('vThk').textContent = lvl(+e.target.value); };
+$('oRnd').oninput = e => { $('vRnd').textContent = lvl(+e.target.value); };
+S.shape = 'fig'; const shpUI = () => [...$('shpSeg').children].forEach(b => b.setAttribute('aria-pressed', b.dataset.v === S.shape));
+$('shpSeg').onclick = async e => { const b = e.target.closest('button'); if (!b || b.dataset.v === S.shape) return; S.shape = b.dataset.v; shpUI(); if (S.src && S.mask && S.mesh && !S.busy) { S.busy = true; try { await rebuildAll(); } finally { S.busy = false; } } };
 $('oRes').oninput = e => { $('vRes').textContent = RES_T[+e.target.value]; };
-['oRel', 'oThk', 'oRes'].forEach(k => $(k).addEventListener('change', async () => { if (S.src && S.mask && !S.busy) { S.busy = true; try { await rebuildAll(); } finally { S.busy = false; } } }));
+['oRel', 'oThk', 'oRes', 'oRnd'].forEach(k => $(k).addEventListener('change', async () => { if (S.src && S.mask && !S.busy) { S.busy = true; try { await rebuildAll(); } finally { S.busy = false; } } }));
 function why(e) { const t = String(e && e.message || e); return /dynamically imported module|Failed to fetch|NetworkError|Load failed/i.test(t) ? '連不上網路，模型還沒下載過' : /memory|Memory|OOM|allocate/i.test(t) ? '手機記憶體不足，可把精細度調低或關掉其他 App' : t.slice(0, 80); }
 function msg(t, kind) { const m = $('msg'); m.className = 'msg' + (t ? ' on ' + (kind || 'warn') : ''); m.textContent = t || ''; }
 function prog(txt, pct, det) { $('prog').classList.add('on'); if (txt != null) $('stTxt').textContent = txt; if (pct != null) { $('stPct').textContent = Math.round(pct) + '%'; $('stBar').style.width = pct + '%'; } if (det != null) $('detail').textContent = det; }
@@ -247,7 +278,7 @@ async function loadFile(f) {
 }
 async function onFile(e) {
   const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
-  try { S.src = await loadFile(f); S.mask = S.depth = null; newProject(); thumb('tSrc', S.src); ['tCut', 'tDep'].forEach(id => { const t = $(id); t.width = t.height = 8; }); $('go').disabled = false; msg(''); prog('圖片已載入，按「開始生成」', 0, `${S.src.width}×${S.src.height}`); }
+  try { S.src = await loadFile(f); S.mask = S.depth = null; newProject(); aiBtns(); thumb('tSrc', S.src); ['tCut', 'tDep'].forEach(id => { const t = $(id); t.width = t.height = 8; }); $('go').disabled = false; msg(''); prog('圖片已載入，按「開始生成」', 0, `${S.src.width}×${S.src.height}`); }
   catch (err) { msg('這張圖片讀不出來，換一張試試（' + err.message + '）', 'err'); }
 }
 $('fCam').onchange = onFile; $('fPick').onchange = onFile;
@@ -373,38 +404,62 @@ function buildMesh(cv, mask, depth, o) {
     for (let k = 0; k < n; k++) dn[k] = inside[k] ? Math.min(1, Math.max(0, (Dp[k] - lo) / sp)) - (md - lo) / sp : 0;
     for (let it = 0; it < 2; it++) { const t = dn.slice(); for (let j = 1; j < gh - 1; j++) for (let i = 1; i < gw - 1; i++) { const k = j * gw + i; if (!inside[k]) continue; let s = 0, c = 0; for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const kk = k + dj * gw + di; if (inside[kk]) { s += t[kk]; c++; } } dn[k] = s / c; } }
   }
-  const cell = 1 / (Math.max(gw, gh) - 1), rel = o.rel, thk = o.thk, two = o.mode === '360';
-  const R = (two ? 0.22 : 0.32) * rel * rel * 1.6, T = dmax * cell * (0.15 + 1.25 * thk);
+  const cell = 1 / (Math.max(gw, gh) - 1), rel = o.rel, thk = o.thk, two = o.mode === '360', charm = o.shape === 'charm', rnd = o.rnd;
+  const R = (two ? 0.22 : 0.32) * rel * rel * 1.6;
+  // 每一點所在部位的「半寬」：沿距離場往上爬到中軸取值 → 手臂、腿各自是圓柱，不會只有軀幹鼓、四肢扁平
+  const Rl = new Float32Array(n);
+  if (two) {
+    const ord = []; for (let k = 0; k < n; k++) if (inside[k]) ord.push(k); ord.sort((a, b) => dist[b] - dist[a]);
+    for (const k of ord) { const i = k % gw, j = (k / gw) | 0; let best = -1, bd = dist[k];
+      for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const ii = i + di, jj = j + dj; if ((di || dj) && ii >= 0 && jj >= 0 && ii < gw && jj < gh) { const kk = jj * gw + ii; if (inside[kk] && dist[kk] > bd) { bd = dist[kk]; best = kk; } } }
+      Rl[k] = best >= 0 ? Math.max(dist[k], Rl[best]) : dist[k]; }
+    for (let it = 0; it < 4; it++) { const t = Rl.slice(); for (let j = 1; j < gh - 1; j++) for (let i = 1; i < gw - 1; i++) { const k = j * gw + i; if (!inside[k]) continue; let sm = 0, c = 0; for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const kk = k + dj * gw + di; if (inside[kk]) { sm += t[kk]; c++; } } Rl[k] = Math.max(dist[k], sm / c); } }
+  }
+  const ts = 0.35 + 0.9 * thk, pw = 2 + (1 - rnd) * 5, Hc = Math.max(gw, gh) * (0.012 + 0.05 * thk);
+  const half = (k, d) => {   // 半厚度（格數）：公仔＝依部位粗細的圓弧斷面；吊飾＝固定厚度＋圓角邊
+    if (charm) { const r = Math.min(Hc * rnd * 0.95, Rl[k] * 0.9 + 0.5); return d >= r ? Hc : Hc - r + Math.sqrt(Math.max(0, r * r - (r - d) * (r - d))); }
+    const rl = Math.max(1, Rl[k]), t = Math.min(1, d / rl); return rl * ts * Math.pow(1 - Math.pow(1 - t, pw), 1 / pw);
+  };
   // 頂點（正面；360 模式再加背面）
-  const vid = new Int32Array(n).fill(-1), P = [], UV = [], edge = new Uint8Array(n); let nv = 0;
+  const vid = new Int32Array(n).fill(-1), P = [], UV = [], edge = new Uint8Array(n), hb = []; let nv = 0;
   for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
     const k = j * gw + i; if (!inside[k]) continue;
     let ex = 0, ey = 0, mo = 0, cnt = 0;
     for (const [di, dj] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) { const ii = i + di, jj = j + dj, out = ii < 0 || jj < 0 || ii >= gw || jj >= gh || !inside[jj * gw + ii]; if (out) { ex += di; ey += dj; mo += (ii < 0 || jj < 0 || ii >= gw || jj >= gh) ? 0 : M[jj * gw + ii]; cnt++; } }
-    let x = i, y = j;
-    if (cnt) { edge[k] = 1; const m = M[k], m2 = mo / cnt, f = m > m2 + 1e-3 ? Math.min(0.9, Math.max(0, (m - 0.5) / (m - m2))) : 0, l = Math.hypot(ex, ey) || 1; x += ex / l * f; y += ey / l * f; }   // 邊緣頂點推到半透明 0.5 的位置，輪廓才平順
-    const b = edge[k] ? 0 : Math.sqrt(Math.max(0, 1 - (1 - Math.min(1, dist[k] / dmax)) ** 2)), fade = edge[k] ? 0 : Math.min(1, dist[k] / Math.max(2, dmax * 0.25));
-    const z = two ? Math.max(T * b * 0.2, T * b + R * dn[k] * fade) : R * dn[k] * fade;   // 正面不會凹到背面後面
-    P.push((x - (gw - 1) / 2) * cell, ((gh - 1) / 2 - y) * cell, z); UV.push(x / (gw - 1), y / (gh - 1)); vid[k] = nv++;
+    let x = i, y = j, f = 0;
+    if (cnt) { edge[k] = 1; const m = M[k], m2 = mo / cnt, l = Math.hypot(ex, ey) || 1; f = m > m2 + 1e-3 ? Math.min(0.9, Math.max(0, (m - 0.5) / (m - m2))) : 0; x += ex / l * f; y += ey / l * f; }   // 邊緣頂點推到半透明 0.5 的位置，輪廓才平順
+    const d = edge[k] ? 0 : Math.max(0, dist[k] - 0.5), fade = edge[k] ? 0 : Math.min(1, dist[k] / Math.max(2, dmax * 0.25)), h = two ? half(k, d) * cell : 0;
+    const z = two ? h + Math.max(-h * 0.6, R * dn[k] * fade) : R * dn[k] * fade;   // 正面不會凹到背面後面
+    hb.push(h); P.push((x - (gw - 1) / 2) * cell, ((gh - 1) / 2 - y) * cell, z); UV.push(x / (gw - 1), y / (gh - 1)); vid[k] = nv++;
   }
   const I = [];
   for (let j = 0; j < gh - 1; j++) for (let i = 0; i < gw - 1; i++) {
     const a = vid[j * gw + i], b = vid[j * gw + i + 1], c = vid[(j + 1) * gw + i], d = vid[(j + 1) * gw + i + 1], m = (a >= 0) + (b >= 0) + (c >= 0) + (d >= 0);
     if (m === 4) { I.push(a, c, b, b, c, d); } else if (m === 3) { if (a < 0) I.push(b, c, d); else if (b < 0) I.push(a, c, d); else if (c < 0) I.push(a, d, b); else I.push(a, c, b); }
   }
-  const nf = nv;
-  if (two) {   // 背面：同一輪廓、往後鼓（較平），貼圖用正面左右相反的樣子；輪廓上的點與正面重合，模型是封閉的
-    for (let k = 0; k < nf; k++) { P.push(P[k * 3], P[k * 3 + 1], 0); UV.push(UV[k * 2], UV[k * 2 + 1]); }
-    let w = 0; for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) { const k = j * gw + i; if (vid[k] < 0) continue; const b = edge[k] ? 0 : Math.sqrt(Math.max(0, 1 - (1 - Math.min(1, dist[k] / dmax)) ** 2)), fade = edge[k] ? 0 : Math.min(1, dist[k] / Math.max(2, dmax * 0.25)); P[(nf + vid[k]) * 3 + 2] = -(T * b * 0.85 + Math.max(0, R * dn[k] * fade) * 0.3); w++; }
+  const nf = nv, wsrc = [];
+  if (two) {   // 背面：同一輪廓、往後鼓；公仔模式輪廓點與正面重合（封閉），吊飾模式用側牆接起來
+    for (let k = 0; k < nf; k++) { P.push(P[k * 3], P[k * 3 + 1], -hb[k] * 0.97); UV.push(UV[k * 2], UV[k * 2 + 1]); }
+    for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) { const k = j * gw + i, v = vid[k]; if (v < 0 || edge[k]) continue; const fade = Math.min(1, dist[k] / Math.max(2, dmax * 0.25)); P[(nf + v) * 3 + 2] -= Math.max(0, R * dn[k] * fade) * 0.25; }
     const nI = I.length; for (let t = 0; t < nI; t += 3) I.push(I[t] + nf, I[t + 2] + nf, I[t + 1] + nf);
+    if (charm) {   // 找出正面網格的外框邊，做四圈側牆（正面貼圖兩圈、背面貼圖兩圈，中間接縫在厚度一半處）
+      const cntE = new Map(), key = (a, b) => a < b ? a * 1e7 + b : b * 1e7 + a;
+      for (let t = 0; t < nI; t += 3) for (let e = 0; e < 3; e++) { const a = I[t + e], b = I[t + (e + 1) % 3], kk = key(a, b); cntE.set(kk, (cntE.get(kk) || 0) + 1); }
+      const ring = new Map(), mk = (v, z, src) => { P.push(P[v * 3], P[v * 3 + 1], z); UV.push(UV[v * 2], UV[v * 2 + 1]); wsrc.push(src); return nv + nf + wsrc.length - 1; };
+      const rv = v => { if (!ring.has(v)) { const zf = P[v * 3 + 2], zb = P[(nf + v) * 3 + 2], zm = (zf + zb) / 2; ring.set(v, [mk(v, zf, v), mk(v, zm, v), mk(v, zm, nf + v), mk(v, zb, nf + v)]); } return ring.get(v); };
+      for (let t = 0; t < nI; t += 3) for (let e = 0; e < 3; e++) { const a = I[t + e], b = I[t + (e + 1) % 3]; if (cntE.get(key(a, b)) !== 1) continue; const A = rv(a), B = rv(b);
+        for (let q = 0; q < 3; q += 2) I.push(A[q], A[q + 1], B[q], B[q], A[q + 1], B[q + 1]); }   // 0→1 正面半牆、2→3 背面半牆（朝外）
+    }
   }
   // 置中（底部對齊 y=0，前後置中），高度固定 1
   let y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity; for (let k = 0; k < P.length; k += 3) { y0 = Math.min(y0, P[k + 1]); y1 = Math.max(y1, P[k + 1]); z0 = Math.min(z0, P[k + 2]); z1 = Math.max(z1, P[k + 2]); }
   const s = 1 / Math.max(1e-6, y1 - y0), zc = two ? (z0 + z1) / 2 : 0; for (let k = 0; k < P.length; k += 3) { P[k] *= s; P[k + 1] = (P[k + 1] - y0) * s; P[k + 2] = (P[k + 2] - zc) * s; }
   const pos = new Float32Array(P), uv = new Float32Array(UV), idx = new Uint32Array(I), nor = new Float32Array(pos.length);
   for (let t = 0; t < idx.length; t += 3) { const a = idx[t] * 3, b = idx[t + 1] * 3, c = idx[t + 2] * 3, ux = pos[b] - pos[a], uy = pos[b + 1] - pos[a + 1], uz = pos[b + 2] - pos[a + 2], vx = pos[c] - pos[a], vy = pos[c + 1] - pos[a + 1], vz = pos[c + 2] - pos[a + 2], nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx; for (const q of [a, b, c]) { nor[q] += nx; nor[q + 1] += ny; nor[q + 2] += nz; } }
+  if (two && !charm) for (let k = 0; k < gw * gh; k++) { const v = vid[k]; if (v < 0 || !edge[k]) continue; for (let c = 0; c < 3; c++) { const t = nor[v * 3 + c] + nor[(nf + v) * 3 + c]; nor[v * 3 + c] = nor[(nf + v) * 3 + c] = t; } }   // 輪廓上正反面法線合一 → 側面不會有一條折痕
   for (let k = 0; k < nor.length; k += 3) { const l = Math.hypot(nor[k], nor[k + 1], nor[k + 2]) || 1; nor[k] /= l; nor[k + 1] /= l; nor[k + 2] /= l; }
-  return { pos, nor, uv, idx, tris: idx.length / 3, two, g: { gw, gh, inside, vid, nf, sx, sy, cell, s, y0, zc, W, H } };
+  if (two) for (let v = 0; v < nf * 2; v++) { const nx = nor[v * 3], ny = nor[v * 3 + 1], st = Math.pow(1 - Math.min(1, Math.abs(nor[v * 3 + 2])), 1.5) * 0.014, l = Math.hypot(nx, ny) || 1; uv[v * 2] = Math.min(1, Math.max(0, uv[v * 2] - nx / l * st)); uv[v * 2 + 1] = Math.min(1, Math.max(0, uv[v * 2 + 1] + ny / l * st)); }   // 側面陡峭處取稍內側的顏色，減少輪廓線被拉長的條紋
+  return { pos, nor, uv, idx, tris: idx.length / 3, two, g: { gw, gh, inside, vid, nf, wsrc: Int32Array.from(wsrc), sx, sy, cell, s, y0, zc, W, H } };
 }
 
 // ---------------- .glb 輸出（glTF 2.0 二進位，貼圖內嵌） ----------------
@@ -680,6 +735,7 @@ function skinWeights(m, J) {
     const s = top.reduce((a, t) => a + t[0], 0) || 1; top.forEach((t, q) => { cw[c * 4 + q] = t[1]; ww[c * 4 + q] = t[0] / s; }); }
   const Jv = new Uint8Array(nv * 4), Wv = new Float32Array(nv * 4), cellOf = new Int32Array(nv);
   for (let c = 0; c < n; c++) { const v = g.vid[c]; if (v < 0) continue; cellOf[v] = c; if (m.two) cellOf[g.nf + v] = c; }
+  g.wsrc.forEach((sv, i) => { cellOf[2 * g.nf + i] = cellOf[sv]; });
   for (let v = 0; v < nv; v++) { const c = cellOf[v]; for (let q = 0; q < 4; q++) { Jv[v * 4 + q] = cw[c * 4 + q]; Wv[v * 4 + q] = ww[c * 4 + q]; } }
   return { J: Jv, Wt: Wv };
 }
@@ -763,7 +819,12 @@ function playClip(n) {
   $('tweak').hidden = false; $('twName').textContent = n; $('twS').value = Math.round(t.s * 100); $('twA').value = Math.round(t.a * 100); $('twOn').checked = t.on; $('twSv').textContent = Math.round(t.s * 100) + '%'; $('twAv').textContent = Math.round(t.a * 100) + '%';
   const a = RIG.acts[n]; if (!a) return; if (RIG.cur && RIG.cur !== a) RIG.cur.fadeOut(0.25); a.reset().fadeIn(0.25).play(); a.timeScale = 1; RIG.cur = a;
 }
-$('clips').onclick = e => { const b = e.target.closest('button'); if (b) playClip(b.dataset.c); };
+$('clips').onclick = e => { const b = e.target.closest('button'); if (b) { playClip(b.dataset.c); viewHint(); } };
+function viewHint() {   // 3D 預覽不在畫面內時（例如正在看關節編輯圖），提示動作在上方預覽播放
+  const r = $('view').getBoundingClientRect(); if (r.bottom > 120 && r.top < innerHeight - 160) return; let t = $('vHint');
+  if (!t) { t = document.createElement('button'); t.id = 'vHint'; t.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:96px;z-index:50;background:#58c4ff;color:#000;border:0;border-radius:22px;padding:10px 18px;font-weight:600;box-shadow:0 4px 16px #0008'; t.onclick = () => { $('view').scrollIntoView({ behavior: 'smooth', block: 'center' }); t.hidden = true; }; document.body.appendChild(t); }
+  t.textContent = '▲ 動作在 3D 預覽播放，點這裡查看'; t.hidden = false; clearTimeout(t._t); t._t = setTimeout(() => { t.hidden = true; }, 5000);
+}
 $('twS').oninput = e => { $('twSv').textContent = e.target.value + '%'; const a = RIG.acts[RIG.sel], t = tw(RIG.sel); if (a) a.timeScale = (+e.target.value / 100) / t.s; };   // 預覽即時變速
 $('twA').oninput = e => { $('twAv').textContent = e.target.value + '%'; };
 $('twApply').onclick = async () => {
@@ -797,10 +858,10 @@ async function saveProject() {
   const old = S.pid ? await dbGet(S.pid) : null, d = new Date(now), p2 = n => String(n).padStart(2, '0');
   const p = { id: S.pid || 'p' + now, name: old ? old.name : `模型 ${p2(d.getMonth() + 1)}/${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}`, status: old ? old.status : 'gen', created: old ? old.created : now, updated: now,
     W, H, src: S.blobs.src, mask: S.blobs.mask, depth: S.blobs.depth, used: S.used,
-    set: { mode: S.mode, rel: +$('oRel').value, thk: +$('oThk').value, res: +$('oRes').value, back: S.bkStyle },
+    set: { mode: S.mode, rel: +$('oRel').value, thk: +$('oThk').value, res: +$('oRes').value, back: S.bkStyle, shape: S.shape, rnd: +$('oRnd').value },
     bk: S.blobs.bk || null, bkm: S.blobs.bkm || null, bkW: S.bk ? S.bk.cv.width : 0, bkH: S.bk ? S.bk.cv.height : 0,
     rig: RIG.H && RIG.raw ? { kind: RIG.kind, H: RIG.H, face: RIG.face, auto: RIG.auto, method: RIG.method, desc: RIG.desc, bb: RIG.bb } : (old && old.rig && RIG.H ? old.rig : null), tw: RIG.tw || null,
-    look: LOOK, paint: S.paint ? S.blobs.paint : null, pmode: S.paint ? S.blobs.pmode : null, fur: S.furMask ? S.blobs.fur : null,
+    prompt: $('tP').value, look: LOOK, paint: S.paint ? S.blobs.paint : null, pmode: S.paint ? S.blobs.pmode : null, fur: S.furMask ? S.blobs.fur : null,
     thumb: shot(), glb: S.glbBlob, kind: RIG.raw ? RIG.kind : null };
   await dbPut(p); S.pid = p.id; $('go').textContent = '重新生成'; const dt = $('detail'); if (!/已儲存/.test(dt.textContent)) dt.textContent += (dt.textContent ? '・' : '') + '已儲存到「我的模型」';
   if (navigator.storage && navigator.storage.persist && !S.persist) { S.persist = 1; navigator.storage.persist().catch(() => { }); }   // 請瀏覽器不要自動清掉
@@ -814,8 +875,8 @@ async function openProject(id) {
     $('oRel').value = p.set.rel; $('oThk').value = p.set.thk; $('oRes').value = p.set.res; ['oRel', 'oThk', 'oRes'].forEach(k => $(k).dispatchEvent(new Event('input'))); setMode(p.set.mode, true);
     if (p.used) { $('oBg').checked = p.used.bg; $('oDepth').checked = p.used.dep; }
     S.bk = null; if (p.bk && p.bkm) { const bb = await createImageBitmap(p.bk), bc = document.createElement('canvas'); bc.width = p.bkW; bc.height = p.bkH; bc.getContext('2d').drawImage(bb, 0, 0, p.bkW, p.bkH); S.bk = { cv: bc, mask: await png2f(p.bkm, p.bkW, p.bkH) }; S.blobs.bk = p.bk; S.blobs.bkm = p.bkm; }
-    S.bkStyle = p.set.back || 'mirror'; bkUI(); $('mOpen').disabled = false; $('mWrap').hidden = true;
-    thumb('tSrc', S.src); const cut = cutCanvas(S.src, S.mask); thumb('tCut', cut); S.cutCv = cut;
+    S.bkStyle = p.set.back || 'mirror'; bkUI(); S.shape = p.set.shape || 'fig'; shpUI(); $('oRnd').value = p.set.rnd ?? 75; $('oRnd').dispatchEvent(new Event('input')); $('mOpen').disabled = false; $('mWrap').hidden = true;
+    thumb('tSrc', S.src); aiBtns(); $('tP').value = p.prompt || $('tP').value; tLib(); const cut = cutCanvas(S.src, S.mask); thumb('tCut', cut); S.cutCv = cut;
     if (S.depth) thumb('tDep', depthCanvas(S.src, S.depth, S.mask)); else { const t = $('tDep'); t.width = t.height = 8; }
     $('go').disabled = false; $('go').textContent = '重新生成'; RIG.H = null; RIG.raw = null; RIG.tw = p.tw || null;
     await rebuild();
@@ -940,7 +1001,7 @@ function makeTex(m) {
       bx.setTransform(-sx, 0, 0, sy, F.x0 + F.w + B.x0 * sx, F.y0 - B.y0 * sy); bx.drawImage(bt, 0, 0); bx.setTransform(1, 0, 0, 1, 0, 0); }
   }
   const A = document.createElement('canvas'); A.width = tw * 2; A.height = th; const ax = A.getContext('2d'); ax.drawImage(front, 0, 0); ax.drawImage(back, tw, 0);
-  const nf = m.g.nf, uv = m.uv; for (let v = 0; v < uv.length / 2; v++) uv[v * 2] = v < nf ? uv[v * 2] * 0.5 : 0.5 + uv[v * 2] * 0.5;   // 正面用左半、背面用右半
+  const nf = m.g.nf, ws = m.g.wsrc, uv = m.uv; for (let v = 0; v < uv.length / 2; v++) uv[v * 2] = (v < 2 * nf ? v : ws[v - 2 * nf]) < nf ? uv[v * 2] * 0.5 : 0.5 + uv[v * 2] * 0.5;   // 正面用左半、背面用右半
   return finishTex(A);
 }
 // ---------------- 外觀：著色器、調色、局部上色、外皮材質、毛髮 ----------------
@@ -1098,9 +1159,203 @@ $('pPaint').onclick = () => peOpen('paint');
 $('pFur').onclick = () => peOpen('fur');
 $('pClear').onclick = () => { if (!S.paint) return; S.paint = null; S.pmode = null; S.paintedCv = null; S.blobs.paint = null; later(() => lookCommit(1), 50); };
 lookUI();
+// ---------------- 提示詞：靈感庫、自動完成、看圖產生（Florence-2） ----------------
+function loadTags() { if (window.TAGS) return Promise.resolve(window.TAGS); return new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'tags.js'; s.onload = () => ok(window.TAGS); s.onerror = () => no(new Error('tags.js 載入失敗')); document.head.appendChild(s); }); }
+const TP = { cat: 0 }, tParts = () => $('tP').value.split(',').map(x => x.trim()).filter(Boolean);
+function tLib() {
+  const T = window.TAGS; if (!T) return; $('tCat').innerHTML = T.lib.map((c, i) => `<button data-i="${i}" aria-pressed="${i === TP.cat}">${c.c}</button>`).join('');
+  const have = $('tP').value.toLowerCase(); $('tLib').innerHTML = T.lib[TP.cat].t.map(([zh, en], i) => `<button data-i="${i}" aria-pressed="${have.includes(en.toLowerCase())}" title="${en}">${zh}</button>`).join('');
+}
+loadTags().then(tLib).catch(() => { $('tCat').hidden = $('tLib').hidden = true; });
+$('tCat').onclick = e => { const b = e.target.closest('button'); if (!b) return; TP.cat = +b.dataset.i; tLib(); };
+$('tLib').onclick = e => {   // 點一下加入，再點一下移除
+  const b = e.target.closest('button'); if (!b) return; const en = window.TAGS.lib[TP.cat].t[+b.dataset.i][1], v = $('tP').value;
+  $('tP').value = v.toLowerCase().includes(en.toLowerCase()) ? tParts().join(', ').replace(new RegExp('(^|,\\s*)' + en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?=,|$)', 'i'), '').replace(/^,\s*/, '') : (v.trim() ? v.trim().replace(/,\s*$/, '') + ', ' : '') + en;
+  tLib(); tSave();
+};
+$('tP').oninput = () => {   // 自動完成：最後一段打英文就找常用標籤，打中文就找靈感庫
+  tLib(); tSave(); const T = window.TAGS, box = $('tAc'); if (!T) return; const last = $('tP').value.split(',').pop().trim().toLowerCase(); let sug = [];
+  if (/[一-鿿]/.test(last)) T.lib.forEach(c => c.t.forEach(([zh, en]) => { if (zh.includes(last) && sug.length < 8) sug.push([zh, en]); }));
+  else if (last.length >= 2) { for (const t of T.ac) { if (t.startsWith(last)) sug.push([t, t]); if (sug.length >= 8) break; } if (sug.length < 8) for (const t of T.ac) { if (!t.startsWith(last) && t.includes(last)) sug.push([t, t]); if (sug.length >= 8) break; } }
+  box.hidden = !sug.length; box.innerHTML = sug.map(([a, en]) => `<button data-en="${en}">${a}</button>`).join('');
+};
+$('tAc').onclick = e => { const b = e.target.closest('button'); if (!b) return; const p = $('tP').value.split(','); p[p.length - 1] = (p.length > 1 ? ' ' : '') + b.dataset.en; $('tP').value = p.join(',') + ', '; $('tAc').hidden = true; tLib(); tSave(); $('tP').focus(); };
+$('tCopy').onclick = async () => { try { await navigator.clipboard.writeText($('tP').value); $('tCopy').textContent = '已複製'; } catch (e) { $('tP').select(); document.execCommand('copy'); $('tCopy').textContent = '已複製'; } setTimeout(() => { $('tCopy').textContent = '複製'; }, 1500); };
+$('tClr').onclick = () => { $('tP').value = ''; $('tAc').hidden = true; tLib(); tSave(); };
+let tST = 0; function tSave() { S.prompt = $('tP').value; clearTimeout(tST); if (S.pid && S.mesh) tST = setTimeout(() => { if (!S.busy) saveProject(); }, 2500); }
+let FL = null;
+$('tCap').onclick = async () => {   // 看圖寫提示詞：Florence-2（MIT），第一次下載約 270 MB
+  if (!S.src || S.busy) return; if (!FL && !window.__noConfirm && !confirm('第一次使用要下載「看圖說話」模型約 270 MB（Florence-2，之後存在手機裡，不再下載）。建議連上 Wi-Fi。要繼續嗎？')) return;
+  S.busy = true; $('tCap').disabled = true;
+  try {
+    const T = await tf(), D = await device(), id = 'onnx-community/Florence-2-base-ft';
+    if (!FL) { const cb = dlTracker(0, 90, '下載看圖說話模型（只需一次）'), dtype = D.device === 'webgpu' ? { embed_tokens: 'fp16', vision_encoder: 'fp16', encoder_model: 'q4', decoder_model_merged: 'q4' } : 'q8';
+      FL = { model: await T.Florence2ForConditionalGeneration.from_pretrained(id, { dtype, device: D.device, progress_callback: cb }), proc: await T.AutoProcessor.from_pretrained(id, { progress_callback: cb }) }; }
+    prog('看圖寫提示詞中…', 92, '手機約需 10～60 秒'); await tick();
+    const c = document.createElement('canvas'); c.width = S.src.width; c.height = S.src.height; const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(S.mask ? cutCanvas(S.src, S.mask) : S.src, 0, 0);   // 有去背就只描述主體
+    const img = await T.RawImage.fromBlob(await new Promise(r => c.toBlob(r, 'image/png'))), task = '<MORE_DETAILED_CAPTION>', inputs = await FL.proc(img, FL.proc.construct_prompts(task));
+    const ids = await FL.model.generate({ ...inputs, max_new_tokens: 120 }), dec = FL.proc.batch_decode ? FL.proc : FL.proc.tokenizer;
+    const raw = dec.batch_decode(ids, { skip_special_tokens: false })[0], res = FL.proc.post_process_generation(raw, task, img.size)[task] || raw;
+    const cap = String(res).replace(/<[^>]+>/g, '').trim().replace(/\.$/, ''), keep = tParts().filter(t => window.TAGS && window.TAGS.lib.some(c => c.t.some(([, en]) => en === t)));
+    $('tP').value = [cap, ...keep].join(', '); tLib(); tSave(); prog('已從圖片產生提示詞', 100, '可再點風格標籤修改（英文）');
+  } catch (e) { console.error(e); msg('看圖產生提示詞失敗：' + (e.message || e), 'err'); }
+  S.busy = false; $('tCap').disabled = !S.src;
+};
+// ---------------- AI 修補／延伸畫面（MI-GAN，MIT，約 30 MB；不用提示詞） ----------------
+const ORT_URL = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/', MIGAN_URL = 'https://huggingface.co/andraniksargsyan/migan/resolve/main/migan_pipeline_v2.onnx';
+let ORT = null, MIGAN = null;
+async function migan() {
+  if (MIGAN) return MIGAN;
+  await ortGpu();
+  const c = await caches.open('img3d-ai'); let r = await c.match(MIGAN_URL), buf;
+  if (r) buf = await r.arrayBuffer();
+  else { r = await fetch(MIGAN_URL); if (!r.ok) throw new Error('下載修補模型失敗（' + r.status + '）'); const tot = +r.headers.get('content-length') || 0, rd = r.body.getReader(), parts = []; let got = 0;
+    for (;;) { const { done, value } = await rd.read(); if (done) break; parts.push(value); got += value.length; prog('下載修補模型（只需一次）', tot ? got / tot * 80 : 40, `${(got / 1048576).toFixed(1)}${tot ? ' / ' + (tot / 1048576).toFixed(1) : ''} MB`); }
+    buf = await new Blob(parts).arrayBuffer(); try { await c.put(MIGAN_URL, new Response(buf.slice(0))); } catch (e) { } }
+  MIGAN = await ORT.InferenceSession.create(buf, { executionProviders: ['wasm'] }); return MIGAN;
+}
+async function inpaintWin(cv, hole, x0, y0, sz) {   // 把 [x0,y0,sz×sz] 縮成 512×512 交給 MI-GAN，結果只貼回要補的地方
+  const W = cv.width, N = 512, c = document.createElement('canvas'); c.width = c.height = N; const cx = c.getContext('2d'); cx.drawImage(cv, x0, y0, sz, sz, 0, 0, N, N);
+  const id = cx.getImageData(0, 0, N, N).data, img = new Uint8Array(3 * N * N), mk = new Uint8Array(N * N); let any = 0;
+  for (let i = 0; i < N * N; i++) { img[i] = id[i * 4]; img[N * N + i] = id[i * 4 + 1]; img[2 * N * N + i] = id[i * 4 + 2]; const sx = x0 + Math.min(sz - 1, Math.floor((i % N) * sz / N)), sy = y0 + Math.min(sz - 1, Math.floor(((i / N) | 0) * sz / N)), h = hole[sy * W + sx]; mk[i] = h ? 0 : 255; any |= h; }
+  if (!any) return; for (let it = 0; it < 3; it++) { const t = mk.slice(); for (let y = 1; y < N - 1; y++) for (let x = 1; x < N - 1; x++) { const i = y * N + x; if (!t[i - 1] || !t[i + 1] || !t[i - N] || !t[i + N]) mk[i] = 0; } }   // 洞往外擴 3 格，接縫較自然
+  let o;
+  if (window.__fakeInpaint) o = window.__fakeInpaint(img, mk, N);
+  else { const s = await migan(), out = await s.run({ [s.inputNames[0]]: new ORT.Tensor('uint8', img, [1, 3, N, N]), [s.inputNames[1]]: new ORT.Tensor('uint8', mk, [1, 1, N, N]) }); o = out[s.outputNames[0]].data;
+    if (!(o instanceof Uint8Array) && !(o instanceof Uint8ClampedArray)) { let mx = 0; for (let i = 0; i < 1000; i++) mx = Math.max(mx, o[i]); const k = mx <= 1.01 ? 255 : 1; o = Uint8Array.from(o, v => Math.max(0, Math.min(255, v * k))); } }
+  const oc = document.createElement('canvas'); oc.width = oc.height = N; const ox = oc.getContext('2d'), oi = ox.createImageData(N, N);
+  for (let i = 0; i < N * N; i++) { oi.data[i * 4] = o[i]; oi.data[i * 4 + 1] = o[N * N + i]; oi.data[i * 4 + 2] = o[2 * N * N + i]; oi.data[i * 4 + 3] = 255; } ox.putImageData(oi, 0, 0);
+  const bc = document.createElement('canvas'); bc.width = bc.height = sz; const bx = bc.getContext('2d'); bx.drawImage(oc, 0, 0, sz, sz); const bd = bx.getImageData(0, 0, sz, sz).data;
+  const soft = blurMask(Float32Array.from(hole, v => v), W, cv.height, 2), dx = cv.getContext('2d'), di = dx.getImageData(x0, y0, sz, sz), d = di.data;
+  for (let y = 0; y < sz; y++) for (let x = 0; x < sz; x++) { const j = (y0 + y) * W + x0 + x, a = hole[j] ? 1 : Math.min(1, soft[j] * 1.5); if (a <= 0) continue; const i = (y * sz + x) * 4; for (let q = 0; q < 3; q++) d[i + q] += (bd[i + q] - d[i + q]) * a; d[i + 3] = 255; }
+  dx.putImageData(di, x0, y0); for (let y = 0; y < sz; y++) for (let x = 0; x < sz; x++) hole[(y0 + y) * W + x0 + x] = 0;   // 補好的地方，下一格當成已知
+}
+async function inpaint(cv, hole) {   // 依洞的範圍切成數個正方形窗格逐一補
+  const W = cv.width, H = cv.height; let bx0 = W, by0 = H, bx1 = -1, by1 = -1; const fx = cv.getContext('2d'); fx.globalCompositeOperation = 'destination-over'; fx.fillStyle = '#fff'; fx.fillRect(0, 0, W, H); fx.globalCompositeOperation = 'source-over';   // 透明背景先墊白，AI 才看得到顏色
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (hole[y * W + x]) { if (x < bx0) bx0 = x; if (x > bx1) bx1 = x; if (y < by0) by0 = y; if (y > by1) by1 = y; }
+  if (bx1 < 0) return false; const bw = bx1 - bx0 + 1, bh = by1 - by0 + 1, sz = Math.min(W, H, Math.max(192, Math.round(Math.min(Math.max(bw, bh) * 1.6, Math.min(bw, bh) * 2.4 + 96))));
+  const xs = [], ys = [], st = Math.max(32, Math.round(sz * 0.6)), cl = (v, mx) => Math.max(0, Math.min(mx - sz, Math.round(v)));
+  for (let x = bx0 + bw / 2 - sz / 2 - Math.max(0, bw - sz) / 2; ; x += st) { xs.push(cl(x, W)); if (x + sz >= bx1 + sz * 0.2 || xs.length > 20) break; }
+  for (let y = by0 + bh / 2 - sz / 2 - Math.max(0, bh - sz) / 2; ; y += st) { ys.push(cl(y, H)); if (y + sz >= by1 + sz * 0.2 || ys.length > 20) break; }
+  const wins = []; for (const y of [...new Set(ys)]) for (const x of [...new Set(xs)]) wins.push([x, y]); let k = 0;
+  for (const [x, y] of wins) { prog('AI 修補中…', 82 + 16 * k++ / wins.length, `第 ${k} / ${wins.length} 區`); await tick(); await inpaintWin(cv, hole, x, y, sz); }
+  return true;
+}
+function srcChanged(cv, sameSize) {   // 原圖被 AI 改過：之後按「重新生成」會重跑去背與深度
+  S.src = cv; S.srcData = S.paintedCv = null; S.blobs = {}; S.used = null; if (!sameSize) { S.mask = S.depth = null; S.paint = S.pmode = S.furMask = null; $('mOpen').disabled = true; }
+  thumb('tSrc', cv); $('go').disabled = false; $('go').textContent = '重新生成'; prog('AI 修補完成', 100, '按「重新生成」更新模型（會重新去背與算深度）');
+}
+const HE = { undo: [], down: false, last: null };
+function hDraw() { const cv = $('hEd'), c = cv.getContext('2d'); c.drawImage(HE.view, 0, 0, cv.width, cv.height); }
+function hRect(x0, y0, w, h) { const W = S.src.width, s = HE.sd, v = HE.vim.data; for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) { const i = (y * W + x) * 4, f = HE.hole[y * W + x] ? 0.6 : 0; v[i] = s[i] * (1 - f) + 255 * f; v[i + 1] = s[i + 1] * (1 - f) + 40 * f; v[i + 2] = s[i + 2] * (1 - f) + 40 * f; v[i + 3] = 255; } HE.vx.putImageData(HE.vim, 0, 0, x0, y0, w, h); }
+$('hOpen').onclick = () => {
+  if (!S.src || S.busy) return; const W = S.src.width, H = S.src.height; HE.hole = new Uint8Array(W * H); HE.undo = []; $('hWrap').hidden = false;
+  const cv = $('hEd'), cw = cv.clientWidth || 300, k = Math.min(cw / W, innerHeight * 0.6 / H), dpr = Math.min(2, devicePixelRatio || 1); cv.style.height = Math.round(H * k) + 'px'; cv.width = Math.round(W * k * dpr); cv.height = Math.round(H * k * dpr); HE.css = k;
+  HE.sd = S.src.getContext('2d').getImageData(0, 0, W, H).data; HE.view = document.createElement('canvas'); HE.view.width = W; HE.view.height = H; HE.vx = HE.view.getContext('2d'); HE.vim = HE.vx.createImageData(W, H); hRect(0, 0, W, H); hDraw(); $('hWrap').scrollIntoView({ behavior: 'smooth', block: 'center' });
+};
+function hDab(x, y) { const W = S.src.width, H = S.src.height, r = (+$('hSz').value / 2) / HE.css, x0 = Math.max(0, Math.floor(x - r)), x1 = Math.min(W - 1, Math.ceil(x + r)), y0 = Math.max(0, Math.floor(y - r)), y1 = Math.min(H - 1, Math.ceil(y + r)); if (x1 < x0 || y1 < y0) return; for (let yy = y0; yy <= y1; yy++) for (let xx = x0; xx <= x1; xx++) if (Math.hypot(xx - x, yy - y) <= r) HE.hole[yy * W + xx] = 1; hRect(x0, y0, x1 - x0 + 1, y1 - y0 + 1); }
+(() => {
+  const cv = $('hEd'), pt = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) / HE.css, (e.clientY - r.top) / HE.css]; };
+  cv.addEventListener('pointerdown', e => { if (!HE.hole) return; HE.undo.push(HE.hole.slice()); if (HE.undo.length > 10) HE.undo.shift(); HE.down = true; HE.last = pt(e); cv.setPointerCapture(e.pointerId); hDab(...HE.last); hDraw(); });
+  cv.addEventListener('pointermove', e => { if (!HE.down) return; const p = pt(e), a = HE.last, st = Math.max(1, (+$('hSz').value / 2) / HE.css / 3), n = Math.ceil(Math.hypot(p[0] - a[0], p[1] - a[1]) / st); for (let i = 1; i <= n; i++) hDab(a[0] + (p[0] - a[0]) * i / n, a[1] + (p[1] - a[1]) * i / n); HE.last = p; hDraw(); });
+  const up = () => { HE.down = false; }; cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+})();
+$('hUndo').onclick = () => { const u = HE.undo.pop(); if (!u) return; HE.hole.set(u); hRect(0, 0, S.src.width, S.src.height); hDraw(); };
+$('hCancel').onclick = () => { $('hWrap').hidden = true; HE.hole = null; };
+async function aiRun(f) { if (S.busy) return; if (!MIGAN && !window.__fakeInpaint && !(await caches.open('img3d-ai').then(c => c.match(MIGAN_URL)).catch(() => null)) && !window.__noConfirm && !confirm('第一次使用要下載 AI 修補模型約 30 MB（MI-GAN，之後存在手機裡）。要繼續嗎？')) return; S.busy = true; try { await f(); } catch (e) { console.error(e); msg('AI 修補失敗：' + (e.message || e), 'err'); } S.busy = false; }
+$('hRun').onclick = () => aiRun(async () => {
+  if (!HE.hole || !HE.hole.some(v => v)) { msg('請先塗抹要補的地方', 'err'); return; }
+  const useP = $('gUseP').checked && $('tP').value.trim(); if (useP && !(await sdConfirm())) return; const c = document.createElement('canvas'); c.width = S.src.width; c.height = S.src.height; c.getContext('2d').drawImage(S.src, 0, 0); const h0 = HE.hole.slice(); await inpaint(c, HE.hole); if (useP) await sdRefine(c, h0); $('hWrap').hidden = true; HE.hole = null; srcChanged(c, true);
+});
+$('hExt').onclick = e => { const b = e.target.closest('button'); if (!b || !S.src) return; aiRun(async () => {   // 延伸畫面：往指定方向加 25%，新的部分讓 AI 補
+  const W = S.src.width, H = S.src.height, d = b.dataset.x, v = d === 't' || d === 'b', ad = Math.round((v ? H : W) * 0.25), NW = v ? W : W + ad, NH = v ? H + ad : H, ox = d === 'l' ? ad : 0, oy = d === 't' ? ad : 0;
+  const c = document.createElement('canvas'); c.width = NW; c.height = NH; const x = c.getContext('2d');
+  x.drawImage(S.src, 0, 0, W, H, ox, oy, W, H); if (d === 'b') x.drawImage(S.src, 0, H - 1, W, 1, 0, H, W, ad); if (d === 't') x.drawImage(S.src, 0, 0, W, 1, 0, 0, W, ad); if (d === 'l') x.drawImage(S.src, 0, 0, 1, H, 0, 0, ad, H); if (d === 'r') x.drawImage(S.src, W - 1, 0, 1, H, W, 0, ad, H);   // 先用邊緣顏色拉長墊底
+  const hole = new Uint8Array(NW * NH); for (let y = 0; y < NH; y++) for (let xx = 0; xx < NW; xx++) if (xx < ox || xx >= ox + W || y < oy || y >= oy + H) hole[y * NW + xx] = 1;
+  const useP = $('gUseP').checked && $('tP').value.trim(); if (useP && !(await sdConfirm())) return; const h0 = hole.slice(); await inpaint(c, hole); if (useP) await sdRefine(c, h0); srcChanged(c, false);
+}); };
+function aiBtns() { const on = !!S.src; $('tCap').disabled = $('hOpen').disabled = $('gBack').disabled = !on; [...$('hExt').children].forEach(b => { b.disabled = !on; }); }
+// ---------------- 提示詞生成（SD-Turbo ONNX，WebGPU）：文字生圖、局部重繪／延伸、推算背面 ----------------
+const SD_REPO = 'https://huggingface.co/schmuell/sd-turbo-ort-web/resolve/main/', SD_FILES = { te: 'text_encoder/model.onnx', unet: 'unet/model.onnx', vd: 'vae_decoder/model.onnx', ve: 'vae_encoder/model.onnx' };
+let SD = null;
+$('gStr').oninput = e => { $('gStrV').textContent = e.target.value + '%'; };
+async function ortGpu() { if (!ORT && window.__fakeORT) ORT = window.__fakeORT; if (!ORT) { ORT = await import(ORT_URL + 'ort.webgpu.min.mjs'); ORT.env.wasm.wasmPaths = ORT_URL; } return ORT; }
+async function fetchCached(url, cache, label, base, span) {   // 下載（有進度）後存在手機，第二次直接讀
+  const c = await caches.open(cache); let r = await c.match(url); if (r) return r.arrayBuffer();
+  r = await fetch(url); if (!r.ok) throw new Error('下載失敗（' + r.status + '）' + url.split('/').slice(-2).join('/'));
+  const tot = +r.headers.get('content-length') || 0, rd = r.body.getReader(), parts = []; let got = 0;
+  for (;;) { const { done, value } = await rd.read(); if (done) break; parts.push(value); got += value.length; prog(label, base + span * (tot ? got / tot : 0.5), `${(got / 1048576).toFixed(0)}${tot ? ' / ' + (tot / 1048576).toFixed(0) : ''} MB`); }
+  const blob = new Blob(parts); parts.length = 0; try { await c.put(url, new Response(blob)); } catch (e) { console.warn('cache', e); } return blob.arrayBuffer();
+}
+async function sdLoad() {
+  if (SD) return SD; if (window.__fakeSD) { await ortGpu(); return (SD = window.__fakeSD); }   // 測試用
+  if (!navigator.gpu) throw new Error('這支手機的瀏覽器不支援 WebGPU（請用新版 Chrome），無法執行 SD-Turbo');
+  const ad = await navigator.gpu.requestAdapter(); if (!ad) throw new Error('取不到 GPU（WebGPU）'); if (!ad.features.has('shader-f16')) throw new Error('這支手機的 GPU 不支援半精度運算（shader-f16），無法執行 SD-Turbo');
+  const ort = await ortGpu(), T = await tf(), o = { executionProviders: ['webgpu'], enableMemPattern: false, enableCpuMemArena: false, extra: { session: { disable_prepacking: '1', use_device_allocator_for_initializers: '1', use_ort_model_bytes_directly: '1', use_ort_model_bytes_for_initializers: '1' } } };
+  const ov = { te: { batch_size: 1 }, unet: { batch_size: 1, num_channels: 4, height: 64, width: 64, sequence_length: 77 }, vd: { batch_size: 1, num_channels_latent: 4, height_latent: 64, width_latent: 64 }, ve: { batch_size: 1, num_channels: 3, height: 512, width: 512 } };
+  const s = {}, ks = ['te', 'vd', 've', 'unet'], span = [20, 5, 5, 65]; let base = 0;
+  for (let i = 0; i < ks.length; i++) { const k = ks[i], buf = await fetchCached(SD_REPO + SD_FILES[k], 'img3d-sd', `下載 SD-Turbo（只需一次）${i + 1}/4`, base, span[i]); base += span[i];
+    prog('載入 SD-Turbo 到 GPU…', base, `${i + 1}/4`); await tick(); s[k] = await ort.InferenceSession.create(buf, { ...o, freeDimensionOverrides: ov[k] }); }
+  s.tok = await T.AutoTokenizer.from_pretrained('Xenova/clip-vit-base-patch16');
+  // 噪聲排程（scaled_linear，1000 步）→ 每個 timestep 的 sigma
+  const ac = new Float64Array(1000); let p = 1; for (let i = 0; i < 1000; i++) { const b = (Math.sqrt(0.00085) + i / 999 * (Math.sqrt(0.012) - Math.sqrt(0.00085))) ** 2; p *= 1 - b; ac[i] = p; } s.sig = t => Math.sqrt((1 - ac[t]) / ac[t]);
+  SD = s; return s;
+}
+const f2h = v => { const f = new Float32Array([v]), x = new Uint32Array(f.buffer)[0], s = (x >>> 16) & 0x8000, e = ((x >>> 23) & 0xff) - 112, m = x & 0x7fffff; if (e <= 0) return s; if (e >= 31) return s | 0x7c00; return s | (e << 10) | (m >>> 13); };
+const h2f = h => { const s = h & 0x8000 ? -1 : 1, e = (h >> 10) & 0x1f, m = h & 0x3ff; return e === 0 ? s * m * 2 ** -24 : e === 31 ? s * Infinity : s * (1 + m / 1024) * 2 ** (e - 15); };
+async function sdRun(sess, feeds) {   // 模型輸入可能要 float16 或 int64：先照原樣跑，型別不符就自動轉換再跑
+  const ort = ORT; try { return await sess.run(feeds); } catch (e) {
+    const m = String(e.message || e); if (!/float16|int64|int32|type/i.test(m)) throw e; const f2 = {};
+    for (const k in feeds) { const t = feeds[k]; if (t.type === 'float32' && /float16/.test(m)) f2[k] = new ort.Tensor('float16', Uint16Array.from(t.data, f2h), t.dims); else if (t.type === 'int32' && /int64/.test(m)) f2[k] = new ort.Tensor('int64', BigInt64Array.from(t.data, v => BigInt(v)), t.dims); else if (t.type === 'int64' && /int32/.test(m)) f2[k] = new ort.Tensor('int32', Int32Array.from(t.data, v => Number(v)), t.dims); else if (t.type === 'int64' && /float/.test(m)) f2[k] = new ort.Tensor('float32', Float32Array.from(t.data, v => Number(v)), t.dims); else f2[k] = t; }
+    return sess.run(f2); }
+}
+const f32 = t => t.type === 'float16' ? Float32Array.from(t.data, h2f) : t.data;
+function randn(n, seed) { let a = seed >>> 0; const r = () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; const o = new Float32Array(n); for (let i = 0; i < n; i += 2) { const u = Math.max(1e-7, r()), v = r(), m = Math.sqrt(-2 * Math.log(u)); o[i] = m * Math.cos(2 * Math.PI * v); if (i + 1 < n) o[i + 1] = m * Math.sin(2 * Math.PI * v); } return o; }
+async function sdText(s, prompt) {
+  const enc = s.tok.encode(prompt || ''), ids = new Int32Array(77); for (let i = 0; i < Math.min(77, enc.length); i++) ids[i] = enc[i]; if (enc.length > 77) ids[76] = 49407;   // 超過 77 個字詞就截斷；其餘補 0
+  const o = await sdRun(s.te, { [s.te.inputNames[0]]: new ORT.Tensor('int32', ids, [1, 77]) }); return o.last_hidden_state || o[s.te.outputNames[0]];
+}
+async function sdGen(prompt, init, strength) {   // init：512×512 畫布（null＝純文字生圖）；回傳 512×512 畫布
+  const s = await sdLoad(), N = 4 * 64 * 64, hid = await sdText(s, prompt), seed = (Math.random() * 2 ** 31) | 0; let t = 999, z0 = null;
+  if (init) { const d = init.getContext('2d').getImageData(0, 0, 512, 512).data, px = new Float32Array(3 * 512 * 512); for (let i = 0; i < 512 * 512; i++) for (let c = 0; c < 3; c++) px[c * 512 * 512 + i] = d[i * 4 + c] / 127.5 - 1;
+    const o = await sdRun(s.ve, { [s.ve.inputNames[0]]: new ORT.Tensor('float32', px, [1, 3, 512, 512]) }); z0 = Float32Array.from(f32(o[s.ve.outputNames[0]]), v => v * 0.18215); t = Math.max(50, Math.min(999, Math.round(1000 * strength) - 1)); }
+  const sg = s.sig(t), nz = randn(N, seed), lat = new Float32Array(N), inp = new Float32Array(N), k = 1 / Math.sqrt(sg * sg + 1);
+  for (let i = 0; i < N; i++) { lat[i] = (z0 ? z0[i] : 0) + nz[i] * sg; inp[i] = lat[i] * k; }
+  prog('SD-Turbo 繪製中…', 97, '約 5～30 秒'); await tick();
+  const u = await sdRun(s.unet, { sample: new ORT.Tensor('float32', inp, [1, 4, 64, 64]), timestep: new ORT.Tensor('int64', BigInt64Array.from([BigInt(t)]), [1]), encoder_hidden_states: hid }), eps = f32(u.out_sample || u[s.unet.outputNames[0]]);
+  const x0 = new Float32Array(N); for (let i = 0; i < N; i++) x0[i] = (lat[i] - sg * eps[i]) / 0.18215;
+  const v = await sdRun(s.vd, { [s.vd.inputNames[0]]: new ORT.Tensor('float32', x0, [1, 4, 64, 64]) }), px = f32(v[s.vd.outputNames[0]]);
+  const c = document.createElement('canvas'); c.width = c.height = 512; const x = c.getContext('2d'), im = x.createImageData(512, 512);
+  for (let i = 0; i < 512 * 512; i++) { for (let q = 0; q < 3; q++) im.data[i * 4 + q] = Math.max(0, Math.min(255, (px[q * 512 * 512 + i] / 2 + 0.5) * 255)); im.data[i * 4 + 3] = 255; } x.putImageData(im, 0, 0); return c;
+}
+async function sdConfirm() { if (SD || window.__noConfirm) return true; const c = await caches.open('img3d-sd').then(c => c.keys()).catch(() => []); if (c.length >= 4) return true; return confirm('第一次使用要下載 SD-Turbo 約 2.6 GB（之後存在手機裡）。\n・請連 Wi-Fi，並確認手機空間足夠\n・需要支援 WebGPU 的高階手機，中低階手機可能會當掉\n・模型授權：Stability AI 非商用社群授權\n要繼續嗎？'); }
+async function sdTask(f) { if (S.busy) return; if (!(await sdConfirm())) return; S.busy = true; try { await f(); } catch (e) { console.error(e); msg('SD-Turbo 失敗：' + (e.message || e), 'err'); } S.busy = false; }
+$('gT2I').onclick = () => sdTask(async () => {   // 文字生圖 → 當成新的原圖
+  const p = $('tP').value.trim(); if (!p) { msg('請先輸入提示詞或點選風格標籤', 'err'); return; }
+  const c = await sdGen(p, null, 1); S.src = c; S.mask = S.depth = null; newProject(); aiBtns(); thumb('tSrc', c); ['tCut', 'tDep'].forEach(id => { const t = $(id); t.width = t.height = 8; }); $('go').disabled = false;
+  prog('已用提示詞生成圖片', 100, '不滿意可再按一次（每次不同）；滿意就按「開始生成」轉 3D');
+});
+async function sdRefine(cv, hole) {   // 局部重繪／延伸：MI-GAN 先補出大概，再用 SD-Turbo 依提示詞重畫，只貼回要改的地方
+  const W = cv.width, H = cv.height, p = $('tP').value.trim(), st = +$('gStr').value / 100; let bx0 = W, by0 = H, bx1 = -1, by1 = -1;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (hole[y * W + x]) { if (x < bx0) bx0 = x; if (x > bx1) bx1 = x; if (y < by0) by0 = y; if (y > by1) by1 = y; }
+  if (bx1 < 0) return; const sz = Math.min(Math.max(W, H), Math.max(256, Math.round(Math.max(bx1 - bx0, by1 - by0) * 1.3))), x0 = Math.max(0, Math.min(W - sz, Math.round((bx0 + bx1 - sz) / 2))), y0 = Math.max(0, Math.min(H - sz, Math.round((by0 + by1 - sz) / 2)));
+  const a = document.createElement('canvas'); a.width = a.height = 512; const ax = a.getContext('2d'); ax.fillStyle = '#fff'; ax.fillRect(0, 0, 512, 512); ax.drawImage(cv, x0, y0, sz, sz, 0, 0, 512 * Math.min(1, (W - x0) / sz), 512 * Math.min(1, (H - y0) / sz));
+  const out = await sdGen(p, a, st), b = document.createElement('canvas'); b.width = b.height = sz; b.getContext('2d').drawImage(out, 0, 0, sz, sz); const bd = b.getContext('2d').getImageData(0, 0, sz, sz).data;
+  const soft = blurMask(Float32Array.from(hole, v => v), W, H, 4), dx = cv.getContext('2d'), w = Math.min(sz, W - x0), h = Math.min(sz, H - y0), di = dx.getImageData(x0, y0, w, h), d = di.data;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const al = Math.min(1, soft[(y0 + y) * W + x0 + x] * 1.6); if (al <= 0) continue; const i = (y * w + x) * 4, j = (y * sz + x) * 4; for (let q = 0; q < 3; q++) d[i + q] += (bd[j + q] - d[i + q]) * al; d[i + 3] = 255; }
+  dx.putImageData(di, x0, y0);
+}
+$('gBack').onclick = () => sdTask(async () => {   // 推算背面：用正面去背圖＋「背面」提示詞重畫，再當成背面照使用
+  if (!S.mask) { msg('請先按「開始生成」做出模型（需要去背）', 'err'); return; } const W = S.src.width, H = S.src.height, bb = bbox(S.mask, W, H); if (!bb) return; const side = Math.round(Math.max(bb.w, bb.h) * 1.1), cx = (bb.x0 + bb.x1) / 2, cy = (bb.y0 + bb.y1) / 2;
+  const a = document.createElement('canvas'); a.width = a.height = 512; const ax = a.getContext('2d'); ax.fillStyle = '#fff'; ax.fillRect(0, 0, 512, 512); ax.drawImage(cutCanvas(S.src, S.mask), cx - side / 2, cy - side / 2, side, side, 0, 0, 512, 512);
+  const p = ($('tP').value.trim() ? $('tP').value.trim() + ', ' : '') + 'back view, from behind, rear view, back of the character, no face visible, same outfit, plain white background';
+  const out = await sdGen(p, a, Math.max(0.6, +$('gStr').value / 100)), m = document.createElement('canvas'); m.width = m.height = 512; const mx = m.getContext('2d'); mx.translate(512, 0); mx.scale(-1, 1); mx.drawImage(out, 0, 0);   // 背面照會被左右翻轉對齊，這裡先翻一次抵銷
+  prog('背面去背中…', 98, ''); await tick(); let mk; try { mk = $('oBg').checked ? await aiMask(m, 90, 8) : keyMask(m); } catch (e) { mk = keyMask(m); }
+  S.bk = { cv: m, mask: mk }; S.blobs.bk = S.blobs.bkm = null; S.busy = false; await setBack('photo'); prog('已用 AI 推算背面', 100, '背面樣式已切到「背面照」；不滿意可再按一次');
+});
 // ---------------- 流程 ----------------
 async function rebuild() {
-  const o = { mode: S.mode, res: +$('oRes').value, rel: +$('oRel').value / 100, thk: +$('oThk').value / 100 };
+  const o = { mode: S.mode, res: +$('oRes').value, rel: +$('oRel').value / 100, thk: +$('oThk').value / 100, rnd: +$('oRnd').value / 100, shape: S.shape };
   prog('建立 3D 網格…', 90, ''); await tick();
   const m = buildMesh(S.src, S.mask, S.depth, o);
   if (!m || m.tris < 8) { msg('找不到主體。可關掉「自動去背」再試，或換一張主體清楚、背景單純的圖。', 'err'); prog('沒有生成模型', 0, ''); return; }
@@ -1141,10 +1396,10 @@ async function cacheInfo() {
   let t = ''; try { const n = await cachedCount(); if (navigator.storage && navigator.storage.estimate) { const e = await navigator.storage.estimate(); t = `手機裡已存模型檔 ${n} 個，網站共用空間 ${(e.usage / 1048576).toFixed(0)} MB`; } else t = `手機裡已存模型檔 ${n} 個`; } catch (e) { }
   $('cacheInfo').textContent = t;
 }
-$('clr').onclick = async () => { if (!confirm('清除後下次使用要重新下載約 70 MB，確定？')) return; try { await caches.delete('transformers-cache'); RMBG = DEPTH = null; } catch (e) { } cacheInfo(); };
+$('clr').onclick = async () => { if (!confirm('清除後下次使用要重新下載 AI 模型，確定？')) return; try { await caches.delete('transformers-cache'); await caches.delete('img3d-ai'); await caches.delete('img3d-sd'); RMBG = DEPTH = FL = MIGAN = SD = null; } catch (e) { } cacheInfo(); };
 cacheInfo();
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => { });
-window.__app = { S, buildMesh, makeGLB, generate, rebuild, RIG, dbAll, openProject, saveProject, get obj() { return obj; }, get LOOK() { return LOOK; } };
+window.__app = { S, buildMesh, makeGLB, generate, rebuild, RIG, dbAll, openProject, saveProject, get obj() { return obj; }, get LOOK() { return LOOK; }, get mixer() { return mixer; } };
 libRender(); applyLearnedSettings(); bkUI();
 </script>
 </body>
