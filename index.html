@@ -36,6 +36,9 @@ input[type=range]{width:46%;accent-color:var(--acc)}input[type=checkbox]{width:2
 #dl{position:fixed;left:0;right:0;bottom:0;background:rgba(20,22,28,.96);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom));backdrop-filter:blur(8px)}
 #dl .row{max-width:720px;margin:0 auto}#dl .btn{font-size:14px;min-height:46px}
 .foot{color:var(--mute);font-size:12px}
+.li{display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}.li:first-child{border-top:0}.li img{width:64px;height:64px;object-fit:cover;border-radius:10px;background:#0f1116;flex:0 0 auto}
+.li .nm{flex:1;min-width:0}.li .nm b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.li .nm small{color:var(--mute);font-size:12px}.li.cur{outline:2px solid var(--acc2);outline-offset:4px;border-radius:8px}
+.acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.acts button{min-height:36px;padding:6px 10px;font-size:13px;border-radius:10px}
 #jEd{width:100%;display:block;border-radius:10px;touch-action:none;background:repeating-conic-gradient(#2a2f3c 0 25%,#232733 0 50%) 0 0/16px 16px}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.chips button{flex:0 0 auto;min-height:40px;padding:8px 14px;font-size:14px;border-radius:20px}.chips button[aria-pressed=true]{background:var(--acc2);color:#04131c}.foot a{color:var(--acc2)}
 </style>
@@ -60,6 +63,14 @@ input[type=range]{width:46%;accent-color:var(--acc)}input[type=checkbox]{width:2
       <figure><canvas id="tCut" width="8" height="8"></canvas>去背</figure>
       <figure><canvas id="tDep" width="8" height="8"></canvas>深度</figure>
     </div>
+    <div class="row" style="margin-top:8px"><button id="mOpen" disabled>✎ 修補去背</button></div>
+    <div id="mWrap" hidden style="margin-top:10px">
+      <div class="seg" role="group" aria-label="筆刷" id="mTool"><button data-m="erase" aria-pressed="true">擦除（變背景）</button><button data-m="keep" aria-pressed="false">補回（變主體）</button></div>
+      <label class="opt"><span>筆刷大小<small id="mSzv">中</small></span><input id="mSz" type="range" min="4" max="80" value="24"></label>
+      <canvas id="mEd" style="width:100%;display:block;border-radius:10px;touch-action:none;margin-top:4px"></canvas>
+      <div class="sub" style="margin:6px 0 0">亮的是主體、暗的是背景；用手指塗抹修正</div>
+      <div class="row" style="margin-top:8px"><button id="mUndo">↶ 復原</button><button id="mCancel">取消</button><button id="mDone" class="pri">完成並重新生成</button></div>
+    </div>
   </section>
 
   <section class="card">
@@ -72,6 +83,12 @@ input[type=range]{width:46%;accent-color:var(--acc)}input[type=checkbox]{width:2
       <label class="opt"><span>AI 深度<small>用深度模型讀出遠近；關掉則只依輪廓推估形狀</small></span><input id="oDepth" type="checkbox" checked></label>
       <label class="opt"><span>立體感<small id="vRel">中</small></span><input id="oRel" type="range" min="0" max="100" value="50"></label>
       <label class="opt" id="rowThk"><span>厚度（推估背面）<small id="vThk">中</small></span><input id="oThk" type="range" min="0" max="100" value="55"></label>
+      <div class="opt" id="rowBack" style="display:block;border-top:1px solid var(--line);padding:8px 0">
+        <span>背面樣式<small style="display:block;color:var(--mute);font-size:12px;font-weight:400">只影響 360° 模型的背面貼圖</small></span>
+        <div class="seg" role="group" aria-label="背面樣式" id="bkSeg" style="margin-top:6px"><button data-b="mirror" aria-pressed="true">鏡像正面</button><button data-b="solid" aria-pressed="false">素色延伸</button><button data-b="photo" aria-pressed="false">背面照</button></div>
+        <div id="bkInfo" class="sub" style="margin:6px 0 0"></div>
+        <input id="fBack" type="file" accept="image/*">
+      </div>
       <label class="opt"><span>精細度<small id="vRes">中（約 3 萬面）</small></span><input id="oRes" type="range" min="0" max="2" step="1" value="1"></label>
       <label class="opt"><span>GPU 加速（實驗）<small>手機支援 WebGPU 時較快，但模型下載較大</small></span><input id="oGpu" type="checkbox"></label>
     </div>
@@ -97,6 +114,55 @@ input[type=range]{width:46%;accent-color:var(--acc)}input[type=checkbox]{width:2
     </div>
   </section>
 
+  <section class="card" id="lookCard" hidden>
+    <h2 style="font-size:17px;margin:0 0 8px">外觀：著色器・上色・外皮・毛髮</h2>
+    <div class="seg" role="group" aria-label="著色器" id="shSeg"><button data-s="real" aria-pressed="true">寫實</button><button data-s="toon" aria-pressed="false">卡通</button></div>
+    <div id="shReal">
+      <label class="opt"><span>粗糙度<small id="lRoughV"></small></span><input id="lRough" type="range" min="0" max="100" value="85"></label>
+      <label class="opt"><span>金屬度<small id="lMetalV"></small></span><input id="lMetal" type="range" min="0" max="100" value="0"></label>
+      <label class="opt"><span>邊緣光<small id="lRimV"></small></span><input id="lRim" type="range" min="0" max="100" value="15"></label>
+    </div>
+    <div id="shToon" hidden>
+      <label class="opt"><span>色階<small id="lStepsV"></small></span><input id="lSteps" type="range" min="2" max="6" value="3"></label>
+      <label class="opt"><span>描邊粗細<small id="lOwV"></small></span><input id="lOw" type="range" min="0" max="100" value="35"></label>
+      <label class="opt"><span>描邊顏色</span><input id="lOc" type="color" value="#1a1a1a"></label>
+      <div class="sub" style="margin:0">卡通描邊只在網頁預覽顯示；下載的 .glb 會用寫實材質</div>
+    </div>
+    <h3 style="font-size:15px;margin:12px 0 2px">調色（整體）</h3>
+    <label class="opt"><span>色相<small id="lHueV"></small></span><input id="lHue" type="range" min="-180" max="180" value="0"></label>
+    <label class="opt"><span>飽和度<small id="lSatV"></small></span><input id="lSat" type="range" min="0" max="200" value="100"></label>
+    <label class="opt"><span>亮度<small id="lBriV"></small></span><input id="lBri" type="range" min="-50" max="50" value="0"></label>
+    <label class="opt"><span>對比<small id="lConV"></small></span><input id="lCon" type="range" min="50" max="150" value="100"></label>
+    <label class="opt"><span>色溫<small id="lTmpV"></small></span><input id="lTmp" type="range" min="-50" max="50" value="0"></label>
+    <div class="row"><button id="lReset">重設調色</button></div>
+    <h3 style="font-size:15px;margin:12px 0 6px">局部上色</h3>
+    <div class="row"><button id="pPaint">🎨 上色筆刷</button><button id="pClear">清除上色</button></div>
+    <h3 style="font-size:15px;margin:12px 0 6px">外皮材質</h3>
+    <div class="chips" id="skSeg" style="margin-top:0"><button data-k="none" aria-pressed="true">原貌</button><button data-k="skin" aria-pressed="false">皮膚</button><button data-k="scale" aria-pressed="false">鱗片</button><button data-k="feather" aria-pressed="false">羽毛</button><button data-k="metal" aria-pressed="false">金屬</button><button data-k="cloth" aria-pressed="false">布料</button></div>
+    <label class="opt"><span>紋理強度<small id="lSsV"></small></span><input id="lSs" type="range" min="0" max="100" value="60"></label>
+    <label class="opt"><span>紋理大小<small id="lScV"></small></span><input id="lSc" type="range" min="0" max="100" value="40"></label>
+    <h3 style="font-size:15px;margin:12px 0 2px">毛髮</h3>
+    <label class="opt"><span>長毛<small>預設整個主體；可用筆刷指定區域</small></span><input id="fOn" type="checkbox"></label>
+    <div id="furBox" hidden>
+      <div class="row"><button id="pFur">🖌 毛髮區域</button></div>
+      <label class="opt"><span>長度<small id="fLenV"></small></span><input id="fLen" type="range" min="5" max="100" value="35"></label>
+      <label class="opt"><span>密度<small id="fDenV"></small></span><input id="fDen" type="range" min="10" max="100" value="65"></label>
+      <label class="opt"><span>捲曲<small id="fCurlV"></small></span><input id="fCurl" type="range" min="0" max="100" value="15"></label>
+      <label class="opt"><span>下垂<small id="fDrpV"></small></span><input id="fDrp" type="range" min="0" max="100" value="35"></label>
+      <div class="seg" role="group" aria-label="毛色" id="fcSeg" style="margin-top:6px"><button data-c="tex" aria-pressed="true">取原本顏色</button><button data-c="custom" aria-pressed="false">自訂顏色</button></div>
+      <label class="opt" id="fColRow" hidden><span>毛色</span><input id="fCol" type="color" value="#8a5a30"></label>
+      <div class="sub" style="margin:4px 0 0">毛髮會一起匯出到 .glb（多層殼網格），其他遊戲也看得到</div>
+    </div>
+    <div id="pWrap" hidden style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px">
+      <div style="font-weight:600" id="pTitle"></div>
+      <div class="seg" role="group" id="pMode" style="margin-top:6px"></div>
+      <label class="opt" id="pColRow"><span>顏色</span><input id="pCol" type="color" value="#c0392b"></label>
+      <label class="opt"><span>筆刷大小</span><input id="pSz" type="range" min="4" max="80" value="24"></label>
+      <canvas id="pEd" style="width:100%;display:block;border-radius:10px;touch-action:none;margin-top:4px"></canvas>
+      <div class="row" style="margin-top:8px"><button id="pUndo">↶ 復原</button><button id="pCancel">取消</button><button id="pDone" class="pri">完成</button></div>
+    </div>
+  </section>
+
   <section class="card" id="rigCard" hidden>
     <h2 style="font-size:17px;margin:0 0 8px">綁骨與動作</h2>
     <div class="seg" role="group" aria-label="骨架類型" id="rigType">
@@ -110,6 +176,21 @@ input[type=range]{width:46%;accent-color:var(--acc)}input[type=checkbox]{width:2
     </div>
     <div id="rStat" class="sub" style="margin:8px 0 0"></div>
     <div id="clips" class="chips"></div>
+    <div id="tweak" hidden style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px">
+      <div style="font-weight:600">動作微調：<span id="twName"></span></div>
+      <label class="opt"><span>速度<small id="twSv">100%</small></span><input id="twS" type="range" min="25" max="200" step="5" value="100"></label>
+      <label class="opt"><span>幅度<small id="twAv">100%</small></span><input id="twA" type="range" min="0" max="150" step="5" value="100"></label>
+      <label class="opt"><span>匯出時包含這個動作</span><input id="twOn" type="checkbox" checked></label>
+      <div class="row"><button id="twApply" class="pri">套用並儲存</button></div>
+    </div>
+    <div class="row" style="margin-top:10px"><button id="pConfirm" class="blue">✓ 確認，放入標準庫</button></div>
+  </section>
+
+  <section class="card" id="libCard">
+    <h2 style="font-size:17px;margin:0 0 8px">我的模型</h2>
+    <div class="seg" role="group" aria-label="模型庫" id="libTab"><button data-l="gen" aria-pressed="true">一般庫（未確認）</button><button data-l="std" aria-pressed="false">標準庫（已確認）</button></div>
+    <div id="libList" style="margin-top:8px"></div>
+    <div class="sub" style="margin:6px 0 0">生成後自動存在這支手機裡（不會上傳）。確認放入標準庫的模型，會讓系統學習你的關節位置、立體設定與動作設定，之後新模型的預設值會越來越貼近你的習慣。</div>
   </section>
 
   <section class="card foot">
@@ -136,17 +217,17 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const TF_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.3.3';
 const $ = id => document.getElementById(id);
-const S = { mode: '360', src: null, mask: null, depth: null, glbURL: null, cutURL: null, depURL: null, busy: false };
+const S = { mode: '360', src: null, mask: null, depth: null, glbURL: null, cutURL: null, depURL: null, busy: false, pid: null, used: null, blobs: {}, glbBlob: null };
 const RES = [128, 192, 272], RES_T = ['低（約 1 萬面）', '中（約 3 萬面）', '高（約 7 萬面）'];
 const lvl = v => v < 25 ? '弱' : v < 45 ? '中弱' : v < 60 ? '中' : v < 80 ? '中強' : '強';
 
 // ---------------- 介面 ----------------
-function setMode(m) { S.mode = m; $('m360').setAttribute('aria-pressed', m === '360'); $('m25').setAttribute('aria-pressed', m === '25'); $('rowThk').style.display = m === '360' ? '' : 'none'; if (S.src && S.mask) rebuild(); }
+function setMode(m, quiet) { S.mode = m; $('m360').setAttribute('aria-pressed', m === '360'); $('m25').setAttribute('aria-pressed', m === '25'); $('rowThk').style.display = $('rowBack').style.display = m === '360' ? '' : 'none'; if (!quiet && S.src && S.mask && !S.busy) { S.busy = true; rebuildAll().finally(() => { S.busy = false; }); } }
 $('m360').onclick = () => setMode('360'); $('m25').onclick = () => setMode('25');
 $('oRel').oninput = e => { $('vRel').textContent = lvl(+e.target.value); };
 $('oThk').oninput = e => { $('vThk').textContent = lvl(+e.target.value); };
 $('oRes').oninput = e => { $('vRes').textContent = RES_T[+e.target.value]; };
-['oRel', 'oThk', 'oRes'].forEach(k => $(k).addEventListener('change', () => { if (S.src && S.mask && !S.busy) rebuild(); }));
+['oRel', 'oThk', 'oRes'].forEach(k => $(k).addEventListener('change', async () => { if (S.src && S.mask && !S.busy) { S.busy = true; try { await rebuildAll(); } finally { S.busy = false; } } }));
 function why(e) { const t = String(e && e.message || e); return /dynamically imported module|Failed to fetch|NetworkError|Load failed/i.test(t) ? '連不上網路，模型還沒下載過' : /memory|Memory|OOM|allocate/i.test(t) ? '手機記憶體不足，可把精細度調低或關掉其他 App' : t.slice(0, 80); }
 function msg(t, kind) { const m = $('msg'); m.className = 'msg' + (t ? ' on ' + (kind || 'warn') : ''); m.textContent = t || ''; }
 function prog(txt, pct, det) { $('prog').classList.add('on'); if (txt != null) $('stTxt').textContent = txt; if (pct != null) { $('stPct').textContent = Math.round(pct) + '%'; $('stBar').style.width = pct + '%'; } if (det != null) $('detail').textContent = det; }
@@ -166,7 +247,7 @@ async function loadFile(f) {
 }
 async function onFile(e) {
   const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
-  try { S.src = await loadFile(f); S.mask = S.depth = null; thumb('tSrc', S.src); ['tCut', 'tDep'].forEach(id => { const t = $(id); t.width = t.height = 8; }); $('go').disabled = false; msg(''); prog('圖片已載入，按「開始生成」', 0, `${S.src.width}×${S.src.height}`); }
+  try { S.src = await loadFile(f); S.mask = S.depth = null; newProject(); thumb('tSrc', S.src); ['tCut', 'tDep'].forEach(id => { const t = $(id); t.width = t.height = 8; }); $('go').disabled = false; msg(''); prog('圖片已載入，按「開始生成」', 0, `${S.src.width}×${S.src.height}`); }
   catch (err) { msg('這張圖片讀不出來，換一張試試（' + err.message + '）', 'err'); }
 }
 $('fCam').onchange = onFile; $('fPick').onchange = onFile;
@@ -327,7 +408,7 @@ function buildMesh(cv, mask, depth, o) {
 }
 
 // ---------------- .glb 輸出（glTF 2.0 二進位，貼圖內嵌） ----------------
-function makeGLB(m, imgBytes, mime, rig) {
+function makeGLB(m, imgBytes, mime, rig, ex) {
   const parts = [], views = [], acc = []; let off = 0;
   const add = (arr, target) => { const b = new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength); const v = { buffer: 0, byteOffset: off, byteLength: b.length }; if (target) v.target = target; views.push(v); parts.push(b); off += b.length; const pad = (4 - off % 4) % 4; if (pad) { parts.push(new Uint8Array(pad)); off += pad; } return views.length - 1; };
   let mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity]; for (let k = 0; k < m.pos.length; k += 3) for (let c = 0; c < 3; c++) { mn[c] = Math.min(mn[c], m.pos[k + c]); mx[c] = Math.max(mx[c], m.pos[k + c]); }
@@ -351,10 +432,19 @@ function makeGLB(m, imgBytes, mime, rig) {
       return { name: c.name, samplers, channels };
     });
   }
+  const prims = [{ attributes: attrs, indices: 3, material: 0 }], mats = [{ name: 'tex', pbrMetallicRoughness: { baseColorTexture: { index: 0 }, metallicFactor: ex ? ex.metal : 0, roughnessFactor: ex ? ex.rough : 0.85 }, doubleSided: !m.two }],
+    texs = [{ source: 0, sampler: 0 }], imgs = [{ bufferView: iv, mimeType: mime }];
+  if (ex && ex.fur) {   // 毛髮：多層殼網格（每層一個 primitive，共用法線／UV／權重／索引，透明度門檻逐層提高）
+    const F = ex.fur, nf = F.map.length, fa = { NORMAL: acc.push({ bufferView: add(F.nor, 34962), componentType: 5126, count: nf, type: 'VEC3' }) - 1, TEXCOORD_0: acc.push({ bufferView: add(F.uv, 34962), componentType: 5126, count: nf, type: 'VEC2' }) - 1 };
+    if (rig) { const j = new Uint8Array(nf * 4), w = new Float32Array(nf * 4); F.map.forEach((v, i) => { for (let q = 0; q < 4; q++) { j[i * 4 + q] = rig.J[v * 4 + q]; w[i * 4 + q] = rig.Wt[v * 4 + q]; } }); fa.JOINTS_0 = acc.push({ bufferView: add(j, 34962), componentType: 5121, count: nf, type: 'VEC4' }) - 1; fa.WEIGHTS_0 = acc.push({ bufferView: add(w, 34962), componentType: 5126, count: nf, type: 'VEC4' }) - 1; }
+    const ii = acc.push({ bufferView: add(F.idx, 34963), componentType: 5125, count: F.idx.length, type: 'SCALAR' }) - 1; imgs.push({ bufferView: add(F.img), mimeType: 'image/png' }); texs.push({ source: 1, sampler: 0 });
+    F.pos.forEach((P, k) => { const a = [Infinity, Infinity, Infinity], b = [-Infinity, -Infinity, -Infinity]; for (let i = 0; i < P.length; i += 3) for (let c = 0; c < 3; c++) { a[c] = Math.min(a[c], P[i + c]); b[c] = Math.max(b[c], P[i + c]); }
+      prims.push({ attributes: { ...fa, POSITION: acc.push({ bufferView: add(P, 34962), componentType: 5126, count: nf, type: 'VEC3', min: a, max: b }) - 1 }, indices: ii, material: mats.length });
+      mats.push({ name: 'fur' + k, pbrMetallicRoughness: { baseColorTexture: { index: 1 }, baseColorFactor: [F.col[k], F.col[k], F.col[k], 1], metallicFactor: 0, roughnessFactor: 0.9 }, alphaMode: 'MASK', alphaCutoff: F.cut[k], doubleSided: true }); });
+  }
   const js = { asset: { version: '2.0', generator: '圖片轉 3D（手機本地）' }, scene: 0, scenes: [{ nodes: sceneNodes }], nodes, ...extra,
-    meshes: [{ name: 'model', primitives: [{ attributes: attrs, indices: 3, material: 0 }] }],
-    materials: [{ name: 'tex', pbrMetallicRoughness: { baseColorTexture: { index: 0 }, metallicFactor: 0, roughnessFactor: 0.85 }, doubleSided: !m.two }],
-    textures: [{ source: 0, sampler: 0 }], samplers: [{ magFilter: 9729, minFilter: 9987, wrapS: 33071, wrapT: 33071 }], images: [{ bufferView: iv, mimeType: mime }],
+    meshes: [{ name: 'model', primitives: prims }], materials: mats,
+    textures: texs, samplers: [{ magFilter: 9729, minFilter: 9987, wrapS: 33071, wrapT: 33071 }], images: imgs,
     buffers: [{ byteLength: off }], bufferViews: views, accessors: acc };
   let jb = new TextEncoder().encode(JSON.stringify(js)); const jp = (4 - jb.length % 4) % 4; if (jp) { const t = new Uint8Array(jb.length + jp); t.set(jb); t.fill(32, jb.length); jb = t; }
   const total = 12 + 8 + jb.length + 8 + off, out = new Uint8Array(total), dv = new DataView(out.buffer);
@@ -419,7 +509,7 @@ const HLINE = {
 const OBJ_CLIPS = [['sway', '搖擺'], ['wiggle', '扭動'], ['bounce', '彈跳'], ['nod', '點頭'], ['dance', '跳舞'], ['spin', '旋轉']];
 function rstat(t) { $('rStat').textContent = t || ''; }
 function rigReset() {
-  if (RIG.glbURL) { URL.revokeObjectURL(RIG.glbURL); RIG.glbURL = null; } RIG.acts = {}; RIG.cur = null; $('clips').innerHTML = '';
+  if (RIG.glbURL) { URL.revokeObjectURL(RIG.glbURL); RIG.glbURL = null; } RIG.acts = {}; RIG.cur = null; RIG.raw = null; $('clips').innerHTML = ''; $('tweak').hidden = true;
   $('rigCard').hidden = !S.mesh; if (RIG.H) rstat('模型已重新生成，按「套用骨架」重新綁骨'); else rstat('');
 }
 $('rigType').onclick = e => { const b = e.target.closest('button'); if (!b) return; RIG.type = b.dataset.t; [...$('rigType').children].forEach(x => x.setAttribute('aria-pressed', x === b)); };
@@ -479,11 +569,11 @@ async function poseDetect(cv) {
   return o;
 }
 $('rFind').onclick = async () => {
-  if (!S.mesh || S.busy) return; const W = S.src.width, H = S.src.height; let kind = RIG.type, h = null; RIG.guess = 0; $('rFind').disabled = true;
+  if (!S.mesh || S.busy) return; const W = S.src.width, H = S.src.height; let kind = RIG.type, h = null; RIG.guess = 0; S.poseH = null; $('rFind').disabled = true;
   try {
     if (kind === 'auto' || kind === 'human') {
       rstat('偵測人體姿勢中…（第一次要下載約 9 MB）');
-      try { h = await poseDetect(S.src); } catch (e) { console.warn(e); rstat('姿勢偵測無法使用（' + why(e) + '），改用輪廓估計'); }
+      try { h = await poseDetect(S.src); S.poseH = h; } catch (e) { console.warn(e); rstat('姿勢偵測無法使用（' + why(e) + '），改用輪廓估計'); }
       if (h) kind = 'human';
       else if (kind === 'auto') {   // 沒偵測到人：看底部有幾隻「腳」與整體比例
         const b = bbox(S.mask, W, H); kind = 'obj';
@@ -494,8 +584,9 @@ $('rFind').onclick = async () => {
     }
     if (!h) { if (kind === 'quad') { const b = bbox(S.mask, W, H); let top = 1e9, tx = 0; if (b) for (let x = b.x0; x <= b.x1; x++) for (let y = b.y0; y < top && y <= b.y1; y++) if (S.mask[y * W + x] > 0.5) { top = y; tx = x; break; } RIG.face = b && tx < (b.x0 + b.x1) / 2 ? -1 : 1; h = estQuad(S.mask, W, H, RIG.face); } else h = (kind === 'human' ? estHuman : estObj)(S.mask, W, H); }
     if (!h) { rstat('找不到主體，無法綁骨'); return; }
+    const lr = await learnJoints(kind, h, h === S.poseH ? 'pose' : 'sil'); h = lr.h; RIG.raw = null; RIG.tw = null;
     RIG.kind = kind; RIG.H = h; $('jWrap').hidden = false; $('rFace').hidden = kind !== 'quad'; $('rFace').textContent = '朝向：' + (RIG.face > 0 ? '右' : '左') + '（點一下換邊）';
-    rstat({ human: '人形', quad: '四足動物', obj: '物體' }[kind] + '：找到 ' + Object.keys(h).length + ' 個關節點' + (RIG.guess ? '（沒偵測到人體，依輪廓判斷；類型不對請在上方改選後再按「找關節」）' : '')); edDraw();
+    rstat({ human: '人形', quad: '四足動物', obj: '物體' }[kind] + '：找到 ' + Object.keys(h).length + ' 個關節點' + (RIG.guess ? '（沒偵測到人體，依輪廓判斷；類型不對請在上方改選後再按「找關節」）' : '') + (lr.how ? '；已從標準庫學習：' + lr.how : '')); edDraw();
   } finally { $('rFind').disabled = false; }
 };
 $('rFace').onclick = () => { RIG.face = -RIG.face; RIG.H = estQuad(S.mask, S.src.width, S.src.height, RIG.face); $('rFace').textContent = '朝向：' + (RIG.face > 0 ? '右' : '左') + '（點一下換邊）'; edDraw(); };
@@ -632,8 +723,9 @@ function bakeObj(J, key, label) {
   }
   return { name: label, times, rot, tr };
 }
-$('rApply').onclick = async () => {
-  if (!RIG.H || !S.mesh || S.busy) return; const b = $('rApply'); b.disabled = true;
+// ---- 套用骨架：算骨架、權重、原始動作（存起來），再依動作微調輸出 .glb ----
+async function applyRig(save) {
+  if (!RIG.H || !S.mesh) return; const b = $('rApply'); b.disabled = true;
   try {
     rstat('計算骨架與權重…'); await tick();
     const m = S.mesh, J = skeleton(RIG.kind, RIG.H, RIG.face);
@@ -641,46 +733,395 @@ $('rApply').onclick = async () => {
     const sw = skinWeights(m, J); let clips;
     if (RIG.kind === 'obj') clips = OBJ_CLIPS.map(([k, n]) => bakeObj(J, k, n));
     else { rstat('載入動作庫…'); const M = await loadMotions(), lib = RIG.kind === 'human' ? M.human : M.quad; rstat('重定向動作中…'); await tick(); clips = lib.clips.map(c => bake(J, lib, c, RIG.kind === 'quad' ? RIG.face : 0)); }
-    const glb = makeGLB(m, S.jpg, 'image/jpeg', { joints: J.map(j => ({ name: j.name, parent: j.parent, pos: j.pos })), J: sw.J, Wt: sw.Wt, clips, root: 0 });
-    if (RIG.glbURL) URL.revokeObjectURL(RIG.glbURL); RIG.glbURL = URL.createObjectURL(glb); setDl('dGlb', RIG.glbURL, `3d_rig_${stamp()}.glb`);
-    const buf = await glb.arrayBuffer(), g = await new Promise((ok, no) => new GLTFLoader().parse(buf, '', ok, no));
-    dropObj(); obj = g.scene; obj.userData.two = m.two; obj.traverse(o => { if (o.isMesh) o.frustumCulled = false; }); scene.add(obj);
-    mixer = new THREE.AnimationMixer(obj); RIG.acts = {}; g.animations.forEach(a => { RIG.acts[a.name] = mixer.clipAction(a); });
-    $('clips').innerHTML = g.animations.map(a => `<button data-c="${a.name}" aria-pressed="false">${a.name}</button>`).join('');
-    playClip(g.animations[0] && g.animations[0].name); resetView();
-    rstat(`已綁骨：${J.length} 根骨頭・${clips.length} 個動作・${(glb.size / 1048576).toFixed(1)} MB（下載的 .glb 含骨架與全部動作）`);
-    window.__rig = { bones: J.length, clips: clips.length, bytes: glb.size, kind: RIG.kind };
+    RIG.J = J; RIG.sw = sw; RIG.raw = clips;
+    if (!RIG.tw) RIG.tw = await learnedTweaks(RIG.kind);
+    await buildRigGLB(); RIG.rigged = true; if (save) await saveProject();
   } catch (e) { console.error(e); rstat('綁骨失敗：' + (e.message || e)); }
   b.disabled = false;
-};
-function playClip(n) { if (!n || !RIG.acts[n]) return; const a = RIG.acts[n]; if (RIG.cur && RIG.cur !== a) RIG.cur.fadeOut(0.25); a.reset().fadeIn(0.25).play(); RIG.cur = a; [...$('clips').children].forEach(x => x.setAttribute('aria-pressed', x.dataset.c === n)); }
+}
+const tw = n => RIG.tw && RIG.tw[n] || { s: 1, a: 1, on: true };
+function tweakClip(c, J) {   // 速度：時間軸縮放；幅度：每格旋轉從綁定姿勢按比例放大縮小
+  const t = tw(c.name), s = Math.max(0.05, t.s), a = t.a;
+  const times = c.times.map(x => x / s), rot = c.rot.map(r => { const o = new Float32Array(r.length); for (let i = 0; i < r.length; i += 4) { let x = r[i], y = r[i + 1], z = r[i + 2], w = r[i + 3]; if (w < 0) { x = -x; y = -y; z = -z; w = -w; } const th = 2 * Math.acos(Math.min(1, w)), sn = Math.sin(th / 2); if (sn < 1e-6) { o[i + 3] = 1; continue; } const k = Math.sin(th * a / 2) / sn; o[i] = x * k; o[i + 1] = y * k; o[i + 2] = z * k; o[i + 3] = Math.cos(th * a / 2); } return o; });
+  const p0 = J[0].pos, tr = c.tr.map((v, i) => p0[i % 3] + (v - p0[i % 3]) * a); return { name: c.name, times, rot, tr };
+}
+async function buildRigGLB() {
+  const m = S.mesh, J = RIG.J, keep = RIG.cur && RIG.cur.getClip().name;
+  const clips = RIG.raw.filter(c => tw(c.name).on).map(c => tweakClip(c, J)); if (!clips.length) clips.push(tweakClip(RIG.raw[0], J));
+  const glb = makeGLB(m, S.jpg, 'image/jpeg', { joints: J.map(j => ({ name: j.name, parent: j.parent, pos: j.pos })), J: RIG.sw.J, Wt: RIG.sw.Wt, clips, root: 0 }, lookEx());
+  if (RIG.glbURL) URL.revokeObjectURL(RIG.glbURL); RIG.glbURL = URL.createObjectURL(glb); S.glbBlob = glb; setDl('dGlb', RIG.glbURL, `3d_rig_${stamp()}.glb`);
+  const g = await previewGLB(glb);
+  mixer = new THREE.AnimationMixer(obj); RIG.acts = {}; RIG.cur = null; g.animations.forEach(a => { RIG.acts[a.name] = mixer.clipAction(a); });
+  $('clips').innerHTML = RIG.raw.map(c => `<button data-c="${c.name}" aria-pressed="false"${tw(c.name).on ? '' : ' style="opacity:.45"'}>${c.name}</button>`).join('');
+  const first = keep && RIG.acts[keep] ? keep : g.animations[0] && g.animations[0].name; playClip(first); if (!keep) resetView();
+  rstat(`已綁骨：${J.length} 根骨頭・${clips.length} 個動作・${(glb.size / 1048576).toFixed(1)} MB（下載的 .glb 含骨架與動作）`);
+  window.__rig = { bones: J.length, clips: clips.length, bytes: glb.size, kind: RIG.kind };
+}
+$('rApply').onclick = () => { if (!S.busy) applyRig(true); };
+function playClip(n) {
+  if (!n) return; [...$('clips').children].forEach(x => x.setAttribute('aria-pressed', x.dataset.c === n)); RIG.sel = n; const t = tw(n);
+  $('tweak').hidden = false; $('twName').textContent = n; $('twS').value = Math.round(t.s * 100); $('twA').value = Math.round(t.a * 100); $('twOn').checked = t.on; $('twSv').textContent = Math.round(t.s * 100) + '%'; $('twAv').textContent = Math.round(t.a * 100) + '%';
+  const a = RIG.acts[n]; if (!a) return; if (RIG.cur && RIG.cur !== a) RIG.cur.fadeOut(0.25); a.reset().fadeIn(0.25).play(); a.timeScale = 1; RIG.cur = a;
+}
 $('clips').onclick = e => { const b = e.target.closest('button'); if (b) playClip(b.dataset.c); };
+$('twS').oninput = e => { $('twSv').textContent = e.target.value + '%'; const a = RIG.acts[RIG.sel], t = tw(RIG.sel); if (a) a.timeScale = (+e.target.value / 100) / t.s; };   // 預覽即時變速
+$('twA').oninput = e => { $('twAv').textContent = e.target.value + '%'; };
+$('twApply').onclick = async () => {
+  if (!RIG.sel || !RIG.raw) return; RIG.tw = RIG.tw || {}; RIG.tw[RIG.sel] = { s: +$('twS').value / 100, a: +$('twA').value / 100, on: $('twOn').checked };
+  $('twApply').disabled = true; try { await buildRigGLB(); await saveProject(); rstat('動作設定已套用並儲存（' + RIG.sel + '）'); } finally { $('twApply').disabled = false; }
+};
+// ---------------- 保存：IndexedDB（存在這支手機的瀏覽器裡） ----------------
+let DBP = null;
+function idb() { if (!DBP) DBP = new Promise((ok, no) => { const r = indexedDB.open('img3d', 1); r.onupgradeneeded = () => r.result.createObjectStore('proj', { keyPath: 'id' }); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); }); return DBP; }
+async function dbDo(mode, f) { const d = await idb(); return new Promise((ok, no) => { const t = d.transaction('proj', mode), st = t.objectStore('proj'), r = f(st); t.oncomplete = () => ok(r && r.result); t.onerror = () => no(t.error); }); }
+const dbPut = p => dbDo('readwrite', st => st.put(p)), dbGet = id => dbDo('readonly', st => st.get(id)), dbAll = () => dbDo('readonly', st => st.getAll()), dbDel = id => dbDo('readwrite', st => st.delete(id));
+function f2png(a, W, H) { const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d'), im = x.createImageData(W, H); for (let i = 0; i < W * H; i++) { const v = Math.round(Math.min(1, Math.max(0, a[i])) * 255); im.data[i * 4] = im.data[i * 4 + 1] = im.data[i * 4 + 2] = v; im.data[i * 4 + 3] = 255; } x.putImageData(im, 0, 0); return new Promise(r => c.toBlob(r, 'image/png')); }
+async function png2f(b, W, H) { const bm = await createImageBitmap(b), c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d'); x.drawImage(bm, 0, 0, W, H); const d = x.getImageData(0, 0, W, H).data, a = new Float32Array(W * H); for (let i = 0; i < W * H; i++) a[i] = d[i * 4] / 255; return a; }
+async function rebuildAll() { await rebuild(); if (RIG.H && RIG.rigged && S.mesh) await applyRig(false); await saveProject(); }   // 改設定後重新生成：已綁骨的會自動重新綁骨、保留動作設定
+function newProject() { RIG.rigged = false; S.bk = null; S.bkStyle = 'mirror'; bkUI(); $('mOpen').disabled = true; $('mWrap').hidden = true; S.pid = null; S.used = null; S.blobs = {}; S.mesh = null; RIG.H = null; RIG.tw = null; RIG.raw = null; RIG.auto = null; $('jWrap').hidden = true; $('tweak').hidden = true; $('rigCard').hidden = true; $('go').textContent = '開始生成'; lookClear(); applyLearnedSettings(); libRender(); }
+function lookClear(p) { LOOK = JSON.parse(JSON.stringify(LOOK0)); if (p && p.look) Object.assign(LOOK, p.look, { fur: Object.assign({}, LOOK0.fur, p.look.fur) }); S.srcData = S.paint = S.pmode = S.paintedCv = S.furMask = S.fur = null; $('lookCard').hidden = true; $('pWrap').hidden = true; PE.kind = null; lookUI(); }
+async function lookLoad(p) {   // 開啟專案：還原外觀設定、上色層、毛髮區域
+  lookClear(p); const W = p.W, H = p.H;
+  if (p.paint) { const bm = await createImageBitmap(p.paint), c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d'); x.drawImage(bm, 0, 0); S.paint = x.getImageData(0, 0, W, H); S.pmode = Uint8Array.from(await png2f(p.pmode, W, H), v => v > 0.5 ? 1 : 0); S.blobs.paint = p.paint; S.blobs.pmode = p.pmode; }
+  if (p.fur) { S.furMask = await png2f(p.fur, W, H); S.blobs.fur = p.fur; }
+}
+function shot() { try { const c = document.createElement('canvas'), w = 160, h = Math.round(160 * R3.domElement.height / R3.domElement.width); c.width = w; c.height = h; R3.render(scene, cam); c.getContext('2d').drawImage(R3.domElement, 0, 0, w, h); return c.toDataURL('image/jpeg', 0.8); } catch (e) { return ''; } }
+async function saveProject() {
+  if (!S.src || !S.mask || !S.mesh) return; const W = S.src.width, H = S.src.height, now = Date.now();
+  if (!S.blobs.src) S.blobs.src = await new Promise(r => S.src.toBlob(r, 'image/jpeg', 0.92));
+  if (!S.blobs.mask) S.blobs.mask = await f2png(S.mask, W, H);
+  if (S.blobs.depth === undefined) S.blobs.depth = S.depth ? await f2png(S.depth, W, H) : null;
+  if (S.paint && !S.blobs.paint) { const c = document.createElement('canvas'); c.width = W; c.height = H; c.getContext('2d').putImageData(S.paint, 0, 0); S.blobs.paint = await new Promise(r => c.toBlob(r, 'image/png')); S.blobs.pmode = await f2png(S.pmode, W, H); }
+  if (S.furMask && !S.blobs.fur) S.blobs.fur = await f2png(S.furMask, W, H);
+  if (S.bk && !S.blobs.bk) { S.blobs.bk = await new Promise(r => S.bk.cv.toBlob(r, 'image/jpeg', 0.9)); S.blobs.bkm = await f2png(S.bk.mask, S.bk.cv.width, S.bk.cv.height); }
+  const old = S.pid ? await dbGet(S.pid) : null, d = new Date(now), p2 = n => String(n).padStart(2, '0');
+  const p = { id: S.pid || 'p' + now, name: old ? old.name : `模型 ${p2(d.getMonth() + 1)}/${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}`, status: old ? old.status : 'gen', created: old ? old.created : now, updated: now,
+    W, H, src: S.blobs.src, mask: S.blobs.mask, depth: S.blobs.depth, used: S.used,
+    set: { mode: S.mode, rel: +$('oRel').value, thk: +$('oThk').value, res: +$('oRes').value, back: S.bkStyle },
+    bk: S.blobs.bk || null, bkm: S.blobs.bkm || null, bkW: S.bk ? S.bk.cv.width : 0, bkH: S.bk ? S.bk.cv.height : 0,
+    rig: RIG.H && RIG.raw ? { kind: RIG.kind, H: RIG.H, face: RIG.face, auto: RIG.auto, method: RIG.method, desc: RIG.desc, bb: RIG.bb } : (old && old.rig && RIG.H ? old.rig : null), tw: RIG.tw || null,
+    look: LOOK, paint: S.paint ? S.blobs.paint : null, pmode: S.paint ? S.blobs.pmode : null, fur: S.furMask ? S.blobs.fur : null,
+    thumb: shot(), glb: S.glbBlob, kind: RIG.raw ? RIG.kind : null };
+  await dbPut(p); S.pid = p.id; $('go').textContent = '重新生成'; const dt = $('detail'); if (!/已儲存/.test(dt.textContent)) dt.textContent += (dt.textContent ? '・' : '') + '已儲存到「我的模型」';
+  if (navigator.storage && navigator.storage.persist && !S.persist) { S.persist = 1; navigator.storage.persist().catch(() => { }); }   // 請瀏覽器不要自動清掉
+  libRender();
+}
+async function openProject(id) {
+  if (S.busy) return; const p = await dbGet(id); if (!p) return; S.busy = true;
+  try {
+    prog('開啟「' + p.name + '」…', 20, ''); const bm = await createImageBitmap(p.src), cv = document.createElement('canvas'); cv.width = p.W; cv.height = p.H; cv.getContext('2d').drawImage(bm, 0, 0, p.W, p.H);
+    S.src = cv; S.mask = await png2f(p.mask, p.W, p.H); S.depth = p.depth ? await png2f(p.depth, p.W, p.H) : null; S.blobs = { src: p.src, mask: p.mask, depth: p.depth }; S.used = p.used; S.pid = p.id; await lookLoad(p);
+    $('oRel').value = p.set.rel; $('oThk').value = p.set.thk; $('oRes').value = p.set.res; ['oRel', 'oThk', 'oRes'].forEach(k => $(k).dispatchEvent(new Event('input'))); setMode(p.set.mode, true);
+    if (p.used) { $('oBg').checked = p.used.bg; $('oDepth').checked = p.used.dep; }
+    S.bk = null; if (p.bk && p.bkm) { const bb = await createImageBitmap(p.bk), bc = document.createElement('canvas'); bc.width = p.bkW; bc.height = p.bkH; bc.getContext('2d').drawImage(bb, 0, 0, p.bkW, p.bkH); S.bk = { cv: bc, mask: await png2f(p.bkm, p.bkW, p.bkH) }; S.blobs.bk = p.bk; S.blobs.bkm = p.bkm; }
+    S.bkStyle = p.set.back || 'mirror'; bkUI(); $('mOpen').disabled = false; $('mWrap').hidden = true;
+    thumb('tSrc', S.src); const cut = cutCanvas(S.src, S.mask); thumb('tCut', cut); S.cutCv = cut;
+    if (S.depth) thumb('tDep', depthCanvas(S.src, S.depth, S.mask)); else { const t = $('tDep'); t.width = t.height = 8; }
+    $('go').disabled = false; $('go').textContent = '重新生成'; RIG.H = null; RIG.raw = null; RIG.tw = p.tw || null;
+    await rebuild();
+    RIG.rigged = !!p.rig; if (p.rig) { Object.assign(RIG, { kind: p.rig.kind, H: p.rig.H, face: p.rig.face, auto: p.rig.auto, method: p.rig.method, desc: p.rig.desc, bb: p.rig.bb }); $('jWrap').hidden = false; $('rFace').hidden = RIG.kind !== 'quad'; edDraw(); await applyRig(false); }
+    else { $('jWrap').hidden = true; $('tweak').hidden = true; }
+    prog('已開啟「' + p.name + '」', 100, p.status === 'std' ? '標準庫（已確認）' : '一般庫（未確認）'); libRender();
+  } catch (e) { console.error(e); msg('開啟失敗：' + (e.message || e), 'err'); }
+  S.busy = false;
+}
+// ---------------- 模型庫列表 ----------------
+let LIB = 'gen';
+$('libTab').onclick = e => { const b = e.target.closest('button'); if (!b) return; LIB = b.dataset.l; [...$('libTab').children].forEach(x => x.setAttribute('aria-pressed', x === b)); libRender(); };
+const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+async function libRender() {
+  let all = []; try { all = await dbAll(); } catch (e) { $('libList').innerHTML = '<div class="sub">這個瀏覽器無法保存（可能是無痕模式）</div>'; return; }
+  const n = { gen: all.filter(p => p.status !== 'std').length, std: all.filter(p => p.status === 'std').length };
+  $('libTab').children[0].textContent = `一般庫（未確認）${n.gen}`; $('libTab').children[1].textContent = `標準庫（已確認）${n.std}`;
+  const L = all.filter(p => (p.status === 'std') === (LIB === 'std')).sort((a, b) => b.updated - a.updated), K = { human: '人形', quad: '四足', obj: '物體' };
+  $('libList').innerHTML = L.length ? L.map(p => `<div class="li${p.id === S.pid ? ' cur' : ''}" data-id="${p.id}"><img src="${p.thumb || ''}" alt=""><div class="nm"><b>${esc(p.name)}</b><small>${new Date(p.updated).toLocaleString('zh-TW', { hour12: false })}・${p.kind ? K[p.kind] + '・已綁骨' : '未綁骨'}・${p.set.mode === '360' ? '360°' : '2.5D'}</small>
+    <div class="acts"><button data-a="open">開啟</button><button data-a="st">${p.status === 'std' ? '移回一般庫' : '✓ 放入標準庫'}</button><button data-a="dl">⬇ .glb</button><button data-a="mv">改名</button><button data-a="rm">刪除</button></div></div></div>`).join('')
+    : `<div class="sub" style="margin:8px 0">${LIB === 'std' ? '還沒有確認的模型。微調滿意後按「✓ 確認，放入標準庫」。' : '還沒有模型。拍照或選圖後按「開始生成」，會自動存在這裡。'}</div>`;
+}
+$('libList').onclick = async e => {
+  const b = e.target.closest('button[data-a]'); if (!b) return; const id = b.closest('.li').dataset.id, a = b.dataset.a;
+  if (a === 'open') return openProject(id);
+  const p = await dbGet(id); if (!p) return;
+  if (a === 'st') { p.status = p.status === 'std' ? 'gen' : 'std'; p.updated = Date.now(); await dbPut(p); libRender(); }
+  if (a === 'dl' && p.glb) { const u = URL.createObjectURL(p.glb), x = document.createElement('a'); x.href = u; x.download = (p.name.replace(/[\\/:*?"<>|\s]+/g, '_') || 'model') + '.glb'; document.body.appendChild(x); x.click(); x.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); }
+  if (a === 'mv') { const nm = prompt('新名稱', p.name); if (nm && nm.trim()) { p.name = nm.trim().slice(0, 40); await dbPut(p); libRender(); } }
+  if (a === 'rm' && confirm('刪除「' + p.name + '」？刪除後無法復原。')) { await dbDel(id); if (S.pid === id) S.pid = null; libRender(); }
+};
+$('pConfirm').onclick = async () => {
+  if (!S.mesh) return; await saveProject(); const p = await dbGet(S.pid); if (!p) return; p.status = 'std'; p.updated = Date.now(); await dbPut(p);
+  LIB = 'std'; [...$('libTab').children].forEach(x => x.setAttribute('aria-pressed', x.dataset.l === 'std')); libRender(); rstat('已確認，放入標準庫；之後的新模型會參考這份設定');
+};
+// ---------------- 從標準庫學習 ----------------
+async function stdList(kind) { try { return (await dbAll()).filter(p => p.status === 'std' && (!kind || (p.rig && p.rig.kind === kind))); } catch (e) { return []; } }
+const med = a => { const s = a.slice().sort((x, y) => x - y); return s[s.length >> 1]; };
+async function applyLearnedSettings() {   // 新圖片：立體感、厚度、精細度、輸出類型預設為標準庫的常用值
+  const L = await stdList(); if (L.length < 1) return;
+  $('oRel').value = med(L.map(p => p.set.rel)); $('oThk').value = med(L.map(p => p.set.thk)); $('oRes').value = med(L.map(p => p.set.res)); ['oRel', 'oThk', 'oRes'].forEach(k => $(k).dispatchEvent(new Event('input')));
+  const m360 = L.filter(p => p.set.mode === '360').length; setMode(m360 * 2 >= L.length ? '360' : '25', true);
+}
+async function learnedTweaks(kind) {   // 新綁骨：每個動作的速度、幅度、是否匯出，取標準庫同類型的常用值
+  const L = (await stdList(kind)).filter(p => p.tw); if (!L.length) return null; const o = {}, names = new Set(); L.forEach(p => Object.keys(p.tw).forEach(n => names.add(n)));
+  names.forEach(n => { const v = L.map(p => p.tw[n]).filter(Boolean); if (v.length) o[n] = { s: med(v.map(x => x.s)), a: med(v.map(x => x.a)), on: v.filter(x => x.on).length * 2 >= v.length }; }); return o;
+}
+function silDesc(mask, W, H) {   // 輪廓特徵：16 列的左右邊界與段數（相對包圍盒）
+  const b = bbox(mask, W, H); if (!b) return null; const d = [b.w / b.h];
+  for (let k = 0; k < 16; k++) { const y = b.y0 + b.h * (k + 0.5) / 16, s = rowSpan(mask, W, y), r = rowRuns(mask, W, y).length; d.push(s ? (s[0] - b.x0) / b.w : 0.5, s ? (s[1] - b.x0) / b.w : 0.5, Math.min(4, r) / 4); }
+  return d;
+}
+const norm = (H, b) => { const o = {}; for (const k in H) o[k] = [(H[k][0] - b.x0) / b.w, (H[k][1] - b.y0) / b.h]; return o; };
+async function learnJoints(kind, h, method) {   // 關節位置：輪廓很像的已確認模型 → 直接沿用它的關節比例；否則套用使用者平均修正量
+  const W = S.src.width, Hh = S.src.height, b = bbox(S.mask, W, Hh); RIG.desc = silDesc(S.mask, W, Hh); RIG.bb = b; RIG.method = method; RIG.auto = b ? norm(h, b) : null;
+  const L = (await stdList(kind)).filter(p => p.rig && p.rig.auto && p.rig.bb); if (!b || !L.length) return { h, n: 0, how: '' };
+  const den = p => ({ x0: p.rig.bb.x0, y0: p.rig.bb.y0, w: p.rig.bb.w, h: p.rig.bb.h });
+  if (method === 'sil' && RIG.desc) {
+    let best = null, bd = 1e9; for (const p of L) { if (!p.rig.desc || p.rig.desc.length !== RIG.desc.length) continue; let dd = 0; for (let i = 0; i < RIG.desc.length; i++) dd += Math.abs(p.rig.desc[i] - RIG.desc[i]); dd /= RIG.desc.length; if (dd < bd) { bd = dd; best = p; } }
+    if (best && bd < 0.06) { const fn = norm(best.rig.H, den(best)), o = {}; for (const k in h) o[k] = fn[k] ? [b.x0 + fn[k][0] * b.w, b.y0 + fn[k][1] * b.h] : h[k]; if (kind === 'quad') RIG.face = best.rig.face; return { h: o, n: 1, how: '沿用輪廓相近的「' + best.name + '」' }; }
+  }
+  const M = L.filter(p => (p.rig.method || 'sil') === method); if (!M.length) return { h, n: 0, how: '' };
+  const o = {}; for (const k in h) { let dx = 0, dy = 0, c = 0; for (const p of M) { const fn = norm(p.rig.H, den(p)), an = p.rig.auto; if (fn[k] && an[k]) { dx += fn[k][0] - an[k][0]; dy += fn[k][1] - an[k][1]; c++; } } o[k] = c ? [h[k][0] + dx / c * b.w * 0.8, h[k][1] + dy / c * b.h * 0.8] : h[k]; }
+  return { h: o, n: M.length, how: `套用 ${M.length} 筆已確認模型的關節修正` };
+}
 
+
+// ---------------- 去背修補筆刷 ----------------
+const MB = { tool: 'erase', undo: [], k: 1, down: false, last: null, orig: null };
+$('mTool').onclick = e => { const b = e.target.closest('button'); if (!b) return; MB.tool = b.dataset.m; [...$('mTool').children].forEach(x => x.setAttribute('aria-pressed', x === b)); };
+$('mSz').oninput = e => { const v = +e.target.value; $('mSzv').textContent = v < 14 ? '細' : v < 34 ? '中' : v < 56 ? '粗' : '特粗'; };
+$('mOpen').onclick = () => { if (!S.mask || S.busy) return; MB.orig = S.mask.slice(); MB.undo = []; $('mWrap').hidden = false; mInit(); $('mWrap').scrollIntoView({ behavior: 'smooth', block: 'center' }); };
+function mInit() {
+  const cv = $('mEd'), W = S.src.width, H = S.src.height, cw = cv.clientWidth || 300, k = Math.min(cw / W, innerHeight * 0.6 / H), dpr = Math.min(2, devicePixelRatio || 1);
+  cv.style.height = Math.round(H * k) + 'px'; cv.width = Math.round(W * k * dpr); cv.height = Math.round(H * k * dpr); MB.css = k;
+  MB.dim = document.createElement('canvas'); MB.dim.width = W; MB.dim.height = H; const d = MB.dim.getContext('2d'); d.drawImage(S.src, 0, 0); d.fillStyle = 'rgba(10,12,20,.72)'; d.fillRect(0, 0, W, H);
+  MB.cut = document.createElement('canvas'); MB.cut.width = W; MB.cut.height = H; MB.cx = MB.cut.getContext('2d'); MB.cx.drawImage(S.src, 0, 0); MB.img = MB.cx.getImageData(0, 0, W, H); mAlpha(0, 0, W, H); mDraw();
+}
+function mAlpha(x0, y0, w, h) { const W = S.src.width, d = MB.img.data; for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) { const i = y * W + x; d[i * 4 + 3] = Math.round(Math.min(1, Math.max(0, (S.mask[i] - 0.15) / 0.7)) * 255); } MB.cx.putImageData(MB.img, 0, 0, x0, y0, w, h); }
+function mDraw() { const cv = $('mEd'), c = cv.getContext('2d'); c.clearRect(0, 0, cv.width, cv.height); c.drawImage(MB.dim, 0, 0, cv.width, cv.height); c.drawImage(MB.cut, 0, 0, cv.width, cv.height); }
+function mDab(x, y) {
+  const W = S.src.width, H = S.src.height, r = (+$('mSz').value / 2) / MB.css, x0 = Math.max(0, Math.floor(x - r)), x1 = Math.min(W - 1, Math.ceil(x + r)), y0 = Math.max(0, Math.floor(y - r)), y1 = Math.min(H - 1, Math.ceil(y + r)), er = MB.tool === 'erase';
+  for (let yy = y0; yy <= y1; yy++) for (let xx = x0; xx <= x1; xx++) { const f = Math.min(1, Math.max(0, (r - Math.hypot(xx - x, yy - y)) / (r * 0.35))); if (f <= 0) continue; const i = yy * W + xx; S.mask[i] = er ? Math.min(S.mask[i], 1 - f) : Math.max(S.mask[i], f); }
+  if (x1 >= x0 && y1 >= y0) mAlpha(x0, y0, x1 - x0 + 1, y1 - y0 + 1);
+}
+(() => {
+  const cv = $('mEd'), pt = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) / MB.css, (e.clientY - r.top) / MB.css]; };
+  cv.addEventListener('pointerdown', e => { if (!S.mask) return; MB.undo.push(S.mask.slice()); if (MB.undo.length > 10) MB.undo.shift(); MB.down = true; MB.last = pt(e); cv.setPointerCapture(e.pointerId); mDab(...MB.last); mDraw(); });
+  cv.addEventListener('pointermove', e => { if (!MB.down) return; const p = pt(e), a = MB.last, st = Math.max(1, (+$('mSz').value / 2) / MB.css / 3), n = Math.ceil(Math.hypot(p[0] - a[0], p[1] - a[1]) / st); for (let i = 1; i <= n; i++) mDab(a[0] + (p[0] - a[0]) * i / n, a[1] + (p[1] - a[1]) * i / n); MB.last = p; mDraw(); });
+  const up = () => { MB.down = false; }; cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+})();
+$('mUndo').onclick = () => { const u = MB.undo.pop(); if (!u) return; S.mask.set(u); mAlpha(0, 0, S.src.width, S.src.height); mDraw(); };
+$('mCancel').onclick = () => { if (MB.orig) S.mask.set(MB.orig); $('mWrap').hidden = true; };
+$('mDone').onclick = async () => {
+  $('mWrap').hidden = true; if (S.busy) return; S.blobs.mask = null;
+  const cut = cutCanvas(S.src, S.mask); thumb('tCut', cut); S.cutCv = cut; if (S.cutURL) URL.revokeObjectURL(S.cutURL); S.cutURL = URL.createObjectURL(await new Promise(r => cut.toBlob(r, 'image/png'))); setDl('dCut', S.cutURL, `cutout_${stamp()}.png`);
+  if (!S.used) S.used = { bg: $('oBg').checked, dep: $('oDepth').checked };
+  S.busy = true; try { await rebuildAll(); } finally { S.busy = false; } if (RIG.H && !$('jWrap').hidden) edDraw();
+};
+// ---------------- 背面樣式：鏡像正面／素色延伸／背面照 ----------------
+S.bkStyle = 'mirror'; S.bk = null;
+function bkUI() { [...$('bkSeg').children].forEach(x => x.setAttribute('aria-pressed', x.dataset.b === S.bkStyle)); $('bkInfo').textContent = S.bkStyle === 'photo' ? (S.bk ? '已使用背面照（再點一次「背面照」可換一張）' : '') : S.bkStyle === 'solid' ? '背面用正面的顏色延伸，不會出現翻過來的臉或圖案' : '背面是正面左右翻轉'; }
+async function setBack(st) { S.bkStyle = st; bkUI(); if (S.src && S.mask && S.mesh && !S.busy) { S.busy = true; try { await rebuildAll(); } finally { S.busy = false; } } }
+$('bkSeg').onclick = e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.b === 'photo' && (!S.bk || S.bkStyle === 'photo')) { $('fBack').click(); return; } setBack(b.dataset.b); };
+$('fBack').onchange = async e => {
+  const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f || S.busy) return;
+  try { const cv = await loadFile(f); prog('背面照去背中…', 30, ''); await tick(); let mk;
+    if ($('oBg').checked) { try { mk = await aiMask(cv, 30, 40); } catch (er) { mk = keyMask(cv); } } else mk = keyMask(cv);
+    S.bk = { cv, mask: mk }; S.blobs.bk = S.blobs.bkm = null; await setBack('photo');
+  } catch (er) { msg('背面照讀取失敗：' + (er.message || er), 'err'); }
+};
+function smoothOf(tex) {   // 極度模糊的顏色場（縮到很小再放大）
+  const w = Math.max(2, Math.round(tex.width / 40)), h = Math.max(2, Math.round(tex.height / 40)), a = document.createElement('canvas'); a.width = w; a.height = h; const c = a.getContext('2d'); c.imageSmoothingQuality = 'high'; c.drawImage(tex, 0, 0, w, h);
+  const o = document.createElement('canvas'); o.width = tex.width; o.height = tex.height; const x = o.getContext('2d'); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high'; x.drawImage(a, 0, 0, o.width, o.height); return o;
+}
+function makeTex(m) {
+  if (m.uv0) m.uv.set(m.uv0); const front = bleedTex(painted(), S.mask); S.tex0w = front.width; if (!m.two || S.bkStyle === 'mirror' || (S.bkStyle === 'photo' && !S.bk)) return finishTex(front);
+  const tw = front.width, th = front.height, back = smoothOf(front), bx = back.getContext('2d');
+  if (S.bkStyle === 'photo') {   // 背面照：依兩張圖的主體外框對齊，左右鏡像（從背後看左右相反）
+    const fb = bbox(S.mask, S.src.width, S.src.height), bt = bleedTex(S.bk.cv, S.bk.mask), bb = bbox(S.bk.mask, S.bk.cv.width, S.bk.cv.height);
+    if (fb && bb) { const kf = tw / S.src.width, kb = bt.width / S.bk.cv.width, F = { x0: fb.x0 * kf, y0: fb.y0 * kf, w: fb.w * kf, h: fb.h * kf }, B = { x0: bb.x0 * kb, y0: bb.y0 * kb, w: bb.w * kb, h: bb.h * kb }, sx = F.w / B.w, sy = F.h / B.h;
+      bx.setTransform(-sx, 0, 0, sy, F.x0 + F.w + B.x0 * sx, F.y0 - B.y0 * sy); bx.drawImage(bt, 0, 0); bx.setTransform(1, 0, 0, 1, 0, 0); }
+  }
+  const A = document.createElement('canvas'); A.width = tw * 2; A.height = th; const ax = A.getContext('2d'); ax.drawImage(front, 0, 0); ax.drawImage(back, tw, 0);
+  const nf = m.g.nf, uv = m.uv; for (let v = 0; v < uv.length / 2; v++) uv[v * 2] = v < nf ? uv[v * 2] * 0.5 : 0.5 + uv[v * 2] * 0.5;   // 正面用左半、背面用右半
+  return finishTex(A);
+}
+// ---------------- 外觀：著色器、調色、局部上色、外皮材質、毛髮 ----------------
+const LOOK0 = { style: 'real', rough: 85, metal: 0, rim: 15, steps: 3, ow: 35, oc: '#1a1a1a', hue: 0, sat: 100, bri: 0, con: 100, tmp: 0, skin: 'none', ss: 60, sc: 40, fur: { on: false, len: 30, den: 65, curl: 15, drp: 35, mode: 'tex', col: '#8a5a30' } };
+let LOOK = JSON.parse(JSON.stringify(LOOK0));
+const SKIN = { skin: [55, 0], scale: [35, 0], feather: [85, 0], metal: [30, 90], cloth: [95, 0] };   // 預設粗糙度、金屬度
+const LS = [['lRough', 'rough', v => v + '%'], ['lMetal', 'metal', v => v + '%'], ['lRim', 'rim', v => v + '%'], ['lSteps', 'steps', v => v + ' 階'], ['lOw', 'ow', v => v + '%'], ['lHue', 'hue', v => v + '°'], ['lSat', 'sat', v => v + '%'], ['lBri', 'bri', v => (v > 0 ? '+' : '') + v], ['lCon', 'con', v => v + '%'], ['lTmp', 'tmp', v => v > 0 ? '暖 ' + v : v < 0 ? '冷 ' + (-v) : '0'], ['lSs', 'ss', v => v + '%'], ['lSc', 'sc', v => v + '%']];
+const FS = [['fLen', 'len', v => v + '%'], ['fDen', 'den', v => v + '%'], ['fCurl', 'curl', v => v + '%'], ['fDrp', 'drp', v => v + '%']];
+function lookUI() {
+  LS.forEach(([id, k, f]) => { $(id).value = LOOK[k]; $(id + 'V').textContent = f(LOOK[k]); }); FS.forEach(([id, k, f]) => { $(id).value = LOOK.fur[k]; $(id + 'V').textContent = f(LOOK.fur[k]); });
+  [...$('shSeg').children].forEach(x => x.setAttribute('aria-pressed', x.dataset.s === LOOK.style)); $('shReal').hidden = LOOK.style !== 'real'; $('shToon').hidden = LOOK.style !== 'toon'; $('lOc').value = LOOK.oc;
+  [...$('skSeg').children].forEach(x => x.setAttribute('aria-pressed', x.dataset.k === LOOK.skin));
+  $('fOn').checked = LOOK.fur.on; $('furBox').hidden = !LOOK.fur.on; [...$('fcSeg').children].forEach(x => x.setAttribute('aria-pressed', x.dataset.c === LOOK.fur.mode)); $('fColRow').hidden = LOOK.fur.mode !== 'custom'; $('fCol').value = LOOK.fur.col;
+}
+let lookT = 0; const later = (f, ms) => { clearTimeout(lookT); lookT = setTimeout(f, ms || 500); };
+async function lookCommit(tex) { if (!S.mesh || S.busy) return later(() => lookCommit(tex), 800); S.busy = true; try { await refreshLook(true, false, !tex); } finally { S.busy = false; } }
+LS.forEach(([id, k, f]) => { $(id).oninput = e => { LOOK[k] = +e.target.value; $(id + 'V').textContent = f(LOOK[k]); if (['rough', 'metal', 'rim', 'steps', 'ow'].includes(k)) applyLook(); }; $(id).onchange = () => later(() => lookCommit(!['rough', 'metal', 'rim', 'steps', 'ow'].includes(k) ? 1 : 0)); });
+FS.forEach(([id, k, f]) => { $(id).oninput = e => { LOOK.fur[k] = +e.target.value; $(id + 'V').textContent = f(LOOK.fur[k]); }; $(id).onchange = () => later(() => lookCommit(1)); });
+$('shSeg').onclick = e => { const b = e.target.closest('button'); if (!b) return; LOOK.style = b.dataset.s; lookUI(); applyLook(); later(() => lookCommit(0)); };
+$('lOc').oninput = e => { LOOK.oc = e.target.value; applyLook(); }; $('lOc').onchange = () => later(() => lookCommit(0));
+$('lReset').onclick = () => { Object.assign(LOOK, { hue: 0, sat: 100, bri: 0, con: 100, tmp: 0 }); lookUI(); later(() => lookCommit(1), 50); };
+$('skSeg').onclick = e => { const b = e.target.closest('button'); if (!b) return; LOOK.skin = b.dataset.k; if (SKIN[LOOK.skin]) { LOOK.rough = SKIN[LOOK.skin][0]; LOOK.metal = SKIN[LOOK.skin][1]; } lookUI(); later(() => lookCommit(1), 50); };
+$('fOn').onchange = e => { LOOK.fur.on = e.target.checked; if (LOOK.fur.on && !S.furMask && S.mask) S.furMask = S.mask.slice(); lookUI(); later(() => lookCommit(1), 50); };
+$('fcSeg').onclick = e => { const b = e.target.closest('button'); if (!b) return; LOOK.fur.mode = b.dataset.c; lookUI(); later(() => lookCommit(1), 50); };
+$('fCol').onchange = e => { LOOK.fur.col = e.target.value; later(() => lookCommit(1), 50); };
+const hex3 = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+// ---- 貼圖加工：局部上色 → 外皮紋理 → 整體調色 ----
+function rgb2hsl(r, g, b) { const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2; if (mx === mn) return [0, 0, l]; const d = mx - mn, s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn); const h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return [h / 6, s, l]; }
+function hsl2rgb(h, s, l) { if (!s) return [l, l, l]; const q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q, f = t => { t = (t % 1 + 1) % 1; return t < 1 / 6 ? p + (q - p) * 6 * t : t < 0.5 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p; }; return [f(h + 1 / 3), f(h), f(h - 1 / 3)]; }
+function paintRect(out, x0, y0, w, h) {   // 原圖＋上色層 → out（「上色」保留明暗只換顏色；「塗滿」直接蓋上）
+  const W = S.src.width, src = S.srcData || (S.srcData = S.src.getContext('2d').getImageData(0, 0, W, S.src.height).data), P = S.paint.data, o = out.data;
+  for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) { const i = (y * W + x) * 4, a = P[i + 3] / 255; let r = src[i], g = src[i + 1], b = src[i + 2];
+    if (a > 0) { let pr = P[i], pg = P[i + 1], pb = P[i + 2]; if (!S.pmode[y * W + x]) { const hs = rgb2hsl(pr / 255, pg / 255, pb / 255), l = rgb2hsl(r / 255, g / 255, b / 255)[2], c = hsl2rgb(hs[0], hs[1], l); pr = c[0] * 255; pg = c[1] * 255; pb = c[2] * 255; } r += (pr - r) * a; g += (pg - g) * a; b += (pb - b) * a; }
+    o[i] = r; o[i + 1] = g; o[i + 2] = b; o[i + 3] = 255; }
+}
+function painted() {
+  if (!S.paint) return S.src; if (S.paintedCv) return S.paintedCv; const W = S.src.width, H = S.src.height, c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d'), im = x.createImageData(W, H);
+  paintRect(im, 0, 0, W, H); x.putImageData(im, 0, 0); S.paintedCv = c; S.paintedIm = im; return c;
+}
+const fr = v => v - Math.floor(v), hsh = (x, y) => fr(Math.sin(x * 127.1 + y * 311.7) * 43758.5453);
+function finishTex(cv) {   // 外皮紋理（乘上明暗）＋整體調色，直接改這張畫布
+  const W = cv.width, H = cv.height, x = cv.getContext('2d'), im = x.getImageData(0, 0, W, H), d = im.data, L = LOOK, sk = L.skin, st = L.ss / 100, cell = 4 + L.sc * 0.22 * (W / 1024 + 0.3);
+  const adj = L.hue || L.sat !== 100 || L.bri || L.con !== 100 || L.tmp; if (sk === 'none' && !adj) return cv;
+  const th = L.hue * Math.PI / 180, cs = Math.cos(th), sn = Math.sin(th), sa = L.sat / 100, M = [   // 色相旋轉＋飽和度（與 CSS filter 相同的矩陣）
+    0.213 + cs * 0.787 - sn * 0.213, 0.715 - cs * 0.715 - sn * 0.715, 0.072 - cs * 0.072 + sn * 0.928, 0.213 - cs * 0.213 + sn * 0.143, 0.715 + cs * 0.285 + sn * 0.140, 0.072 - cs * 0.072 - sn * 0.283, 0.213 - cs * 0.213 - sn * 0.787, 0.715 - cs * 0.715 + sn * 0.715, 0.072 + cs * 0.928 + sn * 0.072];
+  const sr = 0.2126, sg = 0.7152, sb = 0.0722, ct = L.con / 100, br = L.bri / 100, tp = L.tmp / 100 * 0.12;
+  for (let y = 0; y < H; y++) for (let xx = 0; xx < W; xx++) {
+    const i = (y * W + xx) * 4; let r = d[i] / 255, g = d[i + 1] / 255, b = d[i + 2] / 255;
+    if (sk !== 'none') { let f = 1; const u = xx / cell, v = y / cell;
+      if (sk === 'scale') { const row = Math.floor(v), cx = fr(u + (row % 2) * 0.5) - 0.5, cy = fr(v) - 0.15, dd = Math.hypot(cx, cy * 1.25); f = 0.62 + 0.38 * Math.min(1, Math.max(0, (0.56 - dd) / 0.3)) + (dd > 0.47 && dd < 0.56 ? -0.2 : 0); }
+      else if (sk === 'feather') { const k = fr(v / 3); f = 0.78 + 0.22 * Math.sin((u * 2.2 + v * 0.8) * 6.283) * 0.5 + 0.11 - (k < 0.06 ? 0.25 : 0); }
+      else if (sk === 'cloth') { const a1 = Math.sin(u * 6.283), a2 = Math.sin(v * 6.283); f = 0.86 + 0.14 * (a1 * a2 > 0 ? Math.abs(a1) : Math.abs(a2)) - 0.06 * hsh(xx, y); }
+      else if (sk === 'skin') { f = 0.95 + 0.05 * hsh(Math.floor(xx / 2), Math.floor(y / 2)); r *= 1.02; }
+      else if (sk === 'metal') { f = 0.82 + 0.18 * hsh(y, Math.floor(xx / 40)); }
+      f = 1 + (f - 1) * st; r *= f; g *= f; b *= f; }
+    if (adj) { let R = M[0] * r + M[1] * g + M[2] * b, G = M[3] * r + M[4] * g + M[5] * b, B = M[6] * r + M[7] * g + M[8] * b; const lu = sr * R + sg * G + sb * B; R = lu + (R - lu) * sa; G = lu + (G - lu) * sa; B = lu + (B - lu) * sa;
+      r = (R - 0.5) * ct + 0.5 + br + tp; g = (G - 0.5) * ct + 0.5 + br; b = (B - 0.5) * ct + 0.5 + br - tp; }
+    d[i] = r * 255; d[i + 1] = g * 255; d[i + 2] = b * 255; }
+  x.putImageData(im, 0, 0); return cv;
+}
+// ---- 毛髮：多層殼網格＋毛髮貼圖（透明度＝毛的高度） ----
+function buildFur(m, tex) {
+  if (!LOOK.fur.on || !S.furMask) return null; const W = S.src.width, H = S.src.height, uv0 = m.uv0, nv = m.pos.length / 3, F = LOOK.fur, reg = new Float32Array(nv);
+  for (let v = 0; v < nv; v++) reg[v] = sample(S.furMask, W, H, uv0[v * 2] * (W - 1), uv0[v * 2 + 1] * (H - 1));
+  const map = [], rm = new Int32Array(nv).fill(-1), I = [];
+  for (let t = 0; t < m.idx.length; t += 3) { const a = m.idx[t], b = m.idx[t + 1], c = m.idx[t + 2]; if (reg[a] + reg[b] + reg[c] < 1.2) continue; for (const v of [a, b, c]) if (rm[v] < 0) { rm[v] = map.length; map.push(v); } I.push(rm[a], rm[b], rm[c]); }
+  if (!I.length) return null; const n = map.length, NS = 10, Lh = F.len / 100 * 0.1, nor = new Float32Array(n * 3), uv = new Float32Array(n * 2), pos = [], cut = [], col = [];
+  map.forEach((v, i) => { nor.set(m.nor.subarray(v * 3, v * 3 + 3), i * 3); uv.set(m.uv.subarray(v * 2, v * 2 + 2), i * 2); });
+  for (let k = 1; k <= NS; k++) { const t = k / NS, P = new Float32Array(n * 3);
+    map.forEach((v, i) => { const nx = m.nor[v * 3], ny = m.nor[v * 3 + 1], nz = m.nor[v * 3 + 2], px = nz, pz = -nx, pl = Math.hypot(px, pz) || 1, ph = hsh(v, 7) * 6.283, cu = F.curl / 100 * Lh * t * Math.sin(ph + t * 7) * 0.9;
+      P[i * 3] = m.pos[v * 3] + nx * Lh * t + px / pl * cu; P[i * 3 + 1] = m.pos[v * 3 + 1] + ny * Lh * t - F.drp / 100 * Lh * t * t * 1.3; P[i * 3 + 2] = m.pos[v * 3 + 2] + nz * Lh * t + pz / pl * cu; });
+    pos.push(P); cut.push(0.04 + 0.92 * (k - 1) / NS); col.push(0.55 + 0.5 * t); }
+  // 毛髮貼圖：版面與顏色貼圖一致（360° 背面獨立時左右兩半）
+  const atl = tex.width > S.tex0w * 1.5, tw = Math.min(1024, tex.width), th = Math.round(tw * tex.height / tex.width), fc = document.createElement('canvas'); fc.width = tw; fc.height = th;
+  const fx = fc.getContext('2d'); fx.drawImage(tex, 0, 0, tw, th); const im = fx.getImageData(0, 0, tw, th), d = im.data, cc = hex3(F.col), den = F.den / 100;
+  for (let y = 0; y < th; y++) for (let x = 0; x < tw; x++) { const i = (y * tw + x) * 4, hx = atl ? (x % (tw / 2)) / (tw / 2) : x / tw, r = sample(S.furMask, W, H, hx * (W - 1), y / th * (H - 1)), cx = Math.floor(x / 3), cy = Math.floor(y / 3), hh = hsh(cx, cy);
+    const a = r > 0.4 && hsh(cy, cx + 0.5) < den ? Math.pow(hh, 0.55) : 0; if (F.mode === 'custom') { const vv = 0.85 + 0.3 * hh; d[i] = cc[0] * vv; d[i + 1] = cc[1] * vv; d[i + 2] = cc[2] * vv; } d[i + 3] = Math.round(a * 255); }
+  fx.putImageData(im, 0, 0);
+  return { map, nor, uv, idx: new Uint32Array(I), pos, cut, col, cv: fc };
+}
+function lookEx() { return { rough: LOOK.rough / 100, metal: LOOK.metal / 100, fur: S.fur || null }; }
+// ---- 重新產生貼圖／毛髮／.glb，更新預覽 ----
+async function refreshLook(save, resetCam, onlyMat) {
+  if (!S.mesh) return; const m = S.mesh;
+  if (!onlyMat || !S.tex) { const tex = makeTex(m); S.tex = tex; S.jpg = new Uint8Array(await (await new Promise(r => tex.toBlob(r, 'image/jpeg', 0.9))).arrayBuffer());
+    const f = buildFur(m, tex); if (f) f.img = new Uint8Array(await (await new Promise(r => f.cv.toBlob(r, 'image/png'))).arrayBuffer()); S.fur = f; }
+  if (RIG.raw && RIG.J) await buildRigGLB();
+  else { const glb = makeGLB(m, S.jpg, 'image/jpeg', null, lookEx()); if (S.glbURL) URL.revokeObjectURL(S.glbURL); S.glbURL = URL.createObjectURL(glb); S.glbBlob = glb; setDl('dGlb', S.glbURL, `3d_${S.mode === '360' ? '360' : '2.5d'}_${stamp()}.glb`); await previewGLB(glb, resetCam); }
+  if (save) await saveProject();
+}
+async function previewGLB(glb, resetCam) {
+  const buf = await glb.arrayBuffer(), g = await new Promise((ok, no) => new GLTFLoader().parse(buf, '', ok, no)), rot = obj ? obj.rotation.clone() : null, had = !!obj;
+  dropObj(); obj = g.scene; obj.userData.two = S.mesh.two; if (rot) obj.rotation.copy(rot); obj.traverse(o => { if (o.isMesh) o.frustumCulled = false; }); scene.add(obj); applyLook();
+  let gg = null; obj.traverse(o => { if (!gg && o.isMesh) gg = o.geometry; }); gg.computeBoundingBox(); const bb = gg.boundingBox; shadow.scale.setScalar(Math.max(0.3, (bb.max.x - bb.min.x) * 1.1)); shadow.position.y = -0.002; shadow.visible = S.mesh.two;
+  $('empty').style.display = 'none'; if (resetCam || !had) resetView(); return g;
+}
+// ---- 預覽材質：寫實（粗糙度、金屬度、邊緣光）／卡通（色階＋描邊） ----
+let GRAD = null;
+function applyLook() {
+  if (!obj) return; const L = LOOK, toon = L.style === 'toon', old = []; obj.traverse(o => { if (o.userData.outline) old.push(o); }); old.forEach(o => o.parent.remove(o));
+  if (toon) { if (GRAD) GRAD.dispose(); const n = L.steps, d = new Uint8Array(n * 4); for (let i = 0; i < n; i++) { const v = Math.round(255 * (0.35 + 0.65 * i / (n - 1))); d.set([v, v, v, 255], i * 4); } GRAD = new THREE.DataTexture(d, n, 1); GRAD.minFilter = GRAD.magFilter = THREE.NearestFilter; GRAD.needsUpdate = true; }
+  const meshes = []; obj.traverse(o => { if (o.isMesh && !o.userData.outline) meshes.push(o); });
+  for (const o of meshes) {
+    const src = o.userData.mat0 || (o.userData.mat0 = o.material), base = !/^fur/.test(src.name);
+    let mt;
+    if (toon) mt = new THREE.MeshToonMaterial({ map: src.map, color: src.color, gradientMap: GRAD, alphaTest: src.alphaTest, transparent: false, side: src.side });
+    else { mt = src.clone(); if (base) { mt.roughness = L.rough / 100; mt.metalness = L.metal / 100; const rim = L.rim / 100; mt.onBeforeCompile = sh => { sh.uniforms.uRim = { value: rim }; sh.fragmentShader = 'uniform float uRim;\n' + sh.fragmentShader.replace('#include <opaque_fragment>', 'outgoingLight += uRim * pow(1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0), 3.0) * vec3(0.9, 0.95, 1.0);\n#include <opaque_fragment>'); }; mt.customProgramCacheKey = () => 'rim'; } }
+    if (o.material !== src) o.material.dispose(); o.material = mt;
+    if (toon && base && L.ow > 0) {   // 描邊：反面放大一圈（跟著骨架一起動）
+      const w = L.ow / 100 * 0.012, om = new THREE.MeshBasicMaterial({ color: new THREE.Color(L.oc), side: THREE.BackSide });
+      om.onBeforeCompile = sh => { sh.uniforms.uW = { value: w }; sh.vertexShader = 'uniform float uW;\n' + sh.vertexShader.replace('#include <skinning_vertex>', '#include <skinning_vertex>\n#ifdef USE_SKINNING\ntransformed += normalize(objectNormal) * uW;\n#else\ntransformed += normalize(normal) * uW;\n#endif'); }; om.customProgramCacheKey = () => 'ol';
+      const ol = o.isSkinnedMesh ? new THREE.SkinnedMesh(o.geometry, om) : new THREE.Mesh(o.geometry, om); if (o.isSkinnedMesh) ol.bind(o.skeleton, o.bindMatrix);
+      ol.userData.outline = 1; ol.frustumCulled = false; ol.position.copy(o.position); ol.quaternion.copy(o.quaternion); ol.scale.copy(o.scale); o.parent.add(ol);
+    }
+  }
+}
+// ---- 局部上色與毛髮區域的筆刷 ----
+const PE = { kind: null, mode: null, undo: [], down: false, last: null };
+function peOpen(kind) {
+  if (!S.mesh || S.busy) return; PE.kind = kind; PE.undo = []; const W = S.src.width, H = S.src.height;
+  if (kind === 'paint') { if (!S.paint) { S.paint = new ImageData(W, H); S.pmode = new Uint8Array(W * H); } painted(); PE.bak = [S.paint.data.slice(), S.pmode.slice()]; }
+  else { if (!S.furMask) S.furMask = S.mask.slice(); PE.bak = S.furMask.slice(); }
+  const modes = kind === 'paint' ? [['tint', '上色（保留明暗）'], ['fill', '塗滿'], ['erase', '擦除上色']] : [['grow', '長毛'], ['shave', '去毛']]; PE.mode = modes[0][0];
+  $('pMode').innerHTML = modes.map(([k, n], i) => `<button data-p="${k}" aria-pressed="${!i}">${n}</button>`).join(''); $('pColRow').hidden = kind !== 'paint'; $('pTitle').textContent = kind === 'paint' ? '局部上色：用手指塗抹' : '毛髮區域：橘色是會長毛的地方';
+  $('pWrap').hidden = false; const cv = $('pEd'), cw = cv.clientWidth || 300, k = Math.min(cw / W, innerHeight * 0.6 / H), dpr = Math.min(2, devicePixelRatio || 1); cv.style.height = Math.round(H * k) + 'px'; cv.width = Math.round(W * k * dpr); cv.height = Math.round(H * k * dpr); PE.css = k;
+  PE.view = document.createElement('canvas'); PE.view.width = W; PE.view.height = H; PE.vx = PE.view.getContext('2d'); PE.vim = PE.vx.createImageData(W, H); peRect(0, 0, W, H); peDraw(); $('pWrap').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function peRect(x0, y0, w, h) {
+  const W = S.src.width, v = PE.vim.data;
+  if (PE.kind === 'paint') { paintRect(S.paintedIm, x0, y0, w, h); const p = S.paintedIm.data; for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) { const i = (y * W + x) * 4, a = S.mask[y * W + x] > 0.5 ? 1 : 0.35; v[i] = p[i] * a; v[i + 1] = p[i + 1] * a; v[i + 2] = p[i + 2] * a; v[i + 3] = 255; } S.paintedCv.getContext('2d').putImageData(S.paintedIm, 0, 0, x0, y0, w, h); }
+  else { const s = S.srcData || (S.srcData = S.src.getContext('2d').getImageData(0, 0, W, S.src.height).data); for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) { const i = (y * W + x) * 4, j = y * W + x, a = S.mask[j] > 0.5 ? 1 : 0.35, f = Math.min(1, S.furMask[j]) * 0.55; v[i] = (s[i] * (1 - f) + 255 * f) * a; v[i + 1] = (s[i + 1] * (1 - f) + 140 * f) * a; v[i + 2] = (s[i + 2] * (1 - f) + 20 * f) * a; v[i + 3] = 255; } }
+  PE.vx.putImageData(PE.vim, 0, 0, x0, y0, w, h);
+}
+function peDraw() { const cv = $('pEd'); cv.getContext('2d').drawImage(PE.view, 0, 0, cv.width, cv.height); }
+function peDab(x, y) {
+  const W = S.src.width, H = S.src.height, r = (+$('pSz').value / 2) / PE.css, x0 = Math.max(0, Math.floor(x - r)), x1 = Math.min(W - 1, Math.ceil(x + r)), y0 = Math.max(0, Math.floor(y - r)), y1 = Math.min(H - 1, Math.ceil(y + r)); if (x1 < x0 || y1 < y0) return;
+  const c = hex3($('pCol').value);
+  for (let yy = y0; yy <= y1; yy++) for (let xx = x0; xx <= x1; xx++) { const f = Math.min(1, Math.max(0, (r - Math.hypot(xx - x, yy - y)) / (r * 0.35))); if (f <= 0) continue; const j = yy * W + xx;
+    if (PE.kind === 'paint') { const P = S.paint.data, i = j * 4; if (PE.mode === 'erase') P[i + 3] = P[i + 3] * (1 - f); else { const a = P[i + 3] / 255, na = Math.max(a, f); for (let q = 0; q < 3; q++) P[i + q] = a > 0 ? P[i + q] + (c[q] - P[i + q]) * f : c[q]; P[i + 3] = na * 255; S.pmode[j] = PE.mode === 'fill' ? 1 : 0; } }
+    else S.furMask[j] = PE.mode === 'grow' ? Math.max(S.furMask[j], f) : Math.min(S.furMask[j], 1 - f); }
+  peRect(x0, y0, x1 - x0 + 1, y1 - y0 + 1);
+}
+(() => {
+  const cv = $('pEd'), pt = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) / PE.css, (e.clientY - r.top) / PE.css]; };
+  cv.addEventListener('pointerdown', e => { if (!PE.kind) return; PE.undo.push(PE.kind === 'paint' ? [S.paint.data.slice(), S.pmode.slice()] : S.furMask.slice()); if (PE.undo.length > 10) PE.undo.shift(); PE.down = true; PE.last = pt(e); cv.setPointerCapture(e.pointerId); peDab(...PE.last); peDraw(); });
+  cv.addEventListener('pointermove', e => { if (!PE.down) return; const p = pt(e), a = PE.last, st = Math.max(1, (+$('pSz').value / 2) / PE.css / 3), n = Math.ceil(Math.hypot(p[0] - a[0], p[1] - a[1]) / st); for (let i = 1; i <= n; i++) peDab(a[0] + (p[0] - a[0]) * i / n, a[1] + (p[1] - a[1]) * i / n); PE.last = p; peDraw(); });
+  const up = () => { PE.down = false; }; cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+})();
+$('pMode').onclick = e => { const b = e.target.closest('button'); if (!b) return; PE.mode = b.dataset.p; [...$('pMode').children].forEach(x => x.setAttribute('aria-pressed', x === b)); };
+const peRestore = u => { if (PE.kind === 'paint') { S.paint.data.set(u[0]); S.pmode.set(u[1]); } else S.furMask.set(u); peRect(0, 0, S.src.width, S.src.height); peDraw(); };
+$('pUndo').onclick = () => { const u = PE.undo.pop(); if (u) peRestore(u); };
+$('pCancel').onclick = () => { if (PE.bak) peRestore(PE.bak); $('pWrap').hidden = true; PE.kind = null; };
+$('pDone').onclick = () => { $('pWrap').hidden = true; const k = PE.kind; PE.kind = null; if (k === 'paint') S.blobs.paint = null; else S.blobs.fur = null; later(() => lookCommit(1), 50); };
+$('pPaint').onclick = () => peOpen('paint');
+$('pFur').onclick = () => peOpen('fur');
+$('pClear').onclick = () => { if (!S.paint) return; S.paint = null; S.pmode = null; S.paintedCv = null; S.blobs.paint = null; later(() => lookCommit(1), 50); };
+lookUI();
 // ---------------- 流程 ----------------
 async function rebuild() {
   const o = { mode: S.mode, res: +$('oRes').value, rel: +$('oRel').value / 100, thk: +$('oThk').value / 100 };
   prog('建立 3D 網格…', 90, ''); await tick();
   const m = buildMesh(S.src, S.mask, S.depth, o);
   if (!m || m.tris < 8) { msg('找不到主體。可關掉「自動去背」再試，或換一張主體清楚、背景單純的圖。', 'err'); prog('沒有生成模型', 0, ''); return; }
-  const tex = bleedTex(S.src, S.mask); show(m, tex); S.mesh = m; S.tex = tex; rigReset();
-  prog('打包 .glb…', 96, ''); await tick();
-  const jpg = new Uint8Array(await (await new Promise(r => tex.toBlob(r, 'image/jpeg', 0.9))).arrayBuffer()); S.jpg = jpg;
-  const glb = makeGLB(m, jpg, 'image/jpeg'); if (S.glbURL) URL.revokeObjectURL(S.glbURL); S.glbURL = URL.createObjectURL(glb);
-  setDl('dGlb', S.glbURL, `3d_${S.mode === '360' ? '360' : '2.5d'}_${stamp()}.glb`);
+  m.uv0 = m.uv.slice(); const first = !S.mesh; S.mesh = m; rigReset(); $('lookCard').hidden = false;
+  prog('打包 .glb…', 96, ''); await tick(); await refreshLook(false, first); const glb = S.glbBlob;
   prog('完成', 100, `${m.tris.toLocaleString()} 個三角面・${(glb.size / 1048576).toFixed(1)} MB・${S.mode === '360' ? '360° 立體（背面為推估）' : '2.5D 深度浮雕'}`);
   window.__last = { tris: m.tris, glbBytes: glb.size };
 }
 async function generate() {
   if (!S.src || S.busy) return; S.busy = true; $('go').disabled = true; msg(''); const warn = [];
   try {
-    const needAI = $('oBg').checked || $('oDepth').checked;
+    const want = { bg: $('oBg').checked, dep: $('oDepth').checked };
+    if (S.mask && S.used && S.used.bg === want.bg && S.used.dep === want.dep) { try { await rebuildAll(); } finally { S.busy = false; $('go').disabled = false; } return; }   // 重新生成：沿用已算好的去背與深度，只依新設定重建模型
+    const needAI = want.bg || want.dep;
     if (needAI && !(await cachedCount()) && !window.__noConfirm && !confirm('第一次使用要下載 AI 模型約 70 MB（之後存在手機裡，不再下載）。建議連上 Wi-Fi。要繼續嗎？')) { S.busy = false; $('go').disabled = false; prog('已取消', 0, ''); return; }
     prog('讀取圖片', 3, ''); await tick();
     if ($('oBg').checked) {
       try { S.mask = await aiMask(S.src, 5, 45); }
       catch (e) { console.warn(e); warn.push('AI 去背無法使用（' + why(e) + '），改用背景顏色判斷'); prog('以背景顏色去背…', 40, ''); await tick(); S.mask = keyMask(S.src); }
     } else S.mask = new Float32Array(S.src.width * S.src.height).fill(1);
-    const cut = cutCanvas(S.src, S.mask); thumb('tCut', cut); S.cutCv = cut;
+    const cut = cutCanvas(S.src, S.mask); thumb('tCut', cut); S.cutCv = cut; $('mOpen').disabled = false;
     if (S.cutURL) URL.revokeObjectURL(S.cutURL); S.cutURL = URL.createObjectURL(await new Promise(r => cut.toBlob(r, 'image/png'))); setDl('dCut', S.cutURL, `cutout_${stamp()}.png`);
     S.depth = null;
     if ($('oDepth').checked) {
@@ -690,7 +1131,7 @@ async function generate() {
     if (window.__testDepth) S.depth = window.__testDepth(S.src.width, S.src.height);
     if (S.depth) { const dc = depthCanvas(S.src, S.depth, S.mask); thumb('tDep', dc); if (S.depURL) URL.revokeObjectURL(S.depURL); S.depURL = URL.createObjectURL(await new Promise(r => depthCanvas(S.src, S.depth, null).toBlob(r, 'image/png'))); setDl('dDep', S.depURL, `depth_${stamp()}.png`); }
     else { const t = $('tDep'); t.width = t.height = 8; setDl('dDep', null); }
-    await rebuild();
+    S.used = want; S.blobs = {}; await rebuildAll();
     if (warn.length) msg(warn.join('；'));
   } catch (e) { console.error(e); msg('生成失敗：' + (e.message || e), 'err'); prog('失敗', 0, ''); }
   S.busy = false; $('go').disabled = false;
@@ -703,7 +1144,8 @@ async function cacheInfo() {
 $('clr').onclick = async () => { if (!confirm('清除後下次使用要重新下載約 70 MB，確定？')) return; try { await caches.delete('transformers-cache'); RMBG = DEPTH = null; } catch (e) { } cacheInfo(); };
 cacheInfo();
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => { });
-window.__app = { S, buildMesh, makeGLB, generate, rebuild, RIG };
+window.__app = { S, buildMesh, makeGLB, generate, rebuild, RIG, dbAll, openProject, saveProject, get obj() { return obj; }, get LOOK() { return LOOK; } };
+libRender(); applyLearnedSettings(); bkUI();
 </script>
 </body>
 </html>
